@@ -624,8 +624,8 @@
     <div class="answer-row" id="singleAnswerRow">
       <div style="font-size:28px;font-weight:700;color:var(--ink);">＝</div>
       <input class="answer-input" id="answerInput"
-        type="text" inputmode="numeric" autocomplete="off"
-        placeholder="答えを入力 → Enter"
+        type="text" inputmode="none" autocomplete="off" readonly
+        placeholder="テンキーで入力"
         onkeydown="handleKeydown(event)"
         oninput="handleInput(event)">
     </div>
@@ -633,13 +633,13 @@
     <!-- 2ボックス入力（和と積など） -->
     <div class="answer-row" id="twoAnswerRow" style="display:none; gap:8px; flex-wrap:wrap; justify-content:center;">
       <input class="answer-input" id="answerInput1"
-        type="text" inputmode="numeric" autocomplete="off"
+        type="text" inputmode="none" autocomplete="off" readonly
         style="width:100px;"
         placeholder="□"
         onkeydown="handleKeydownTwo(event,1)">
       <div style="font-size:20px;font-weight:700;color:var(--mist);align-self:center;">と</div>
       <input class="answer-input" id="answerInput2"
-        type="text" inputmode="numeric" autocomplete="off"
+        type="text" inputmode="none" autocomplete="off" readonly
         style="width:100px;"
         placeholder="□"
         onkeydown="handleKeydownTwo(event,2)">
@@ -651,6 +651,26 @@
 
   <!-- テンキーパッド -->
   <div style="max-width:340px; margin:0 auto; padding:0 4px;">
+    <div class="numpad-wrap" id="numpadWrap">
+      <div id="numpadSingleBox">
+        <div class="numpad-label">テンキー入力</div>
+        <div class="numpad-display active" id="npDisplay">？</div>
+      </div>
+      <div id="numpadTwoBox" style="display:none;">
+        <div class="numpad-label">テンキー入力</div>
+        <div class="numpad-two-row">
+          <div class="nd-wrap">
+            <div class="numpad-label">1つ目</div>
+            <div class="numpad-display active" id="npDisplay1">？</div>
+          </div>
+          <div class="nd-sep">と</div>
+          <div class="nd-wrap">
+            <div class="numpad-label">2つ目</div>
+            <div class="numpad-display" id="npDisplay2">？</div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="numpad-grid">
       <button class="np-btn" ontouchstart="" onclick="npInput('7')">7</button>
       <button class="np-btn" ontouchstart="" onclick="npInput('8')">8</button>
@@ -940,6 +960,7 @@ let lastMode        = null;
 function init() {
   renderLevelGrid();
   renderHistorySection();
+  syncVisibleInputs();
 }
 
 function renderLevelGrid() {
@@ -1109,44 +1130,67 @@ function startSessionTimer(limitSec) {
 
 function showQuestion() {
   const prob = currentProblems[currentIndex];
-  const total= currentProblems.length;
-  answered   = false;
+  const total = currentProblems.length;
+  answered = false;
 
-  document.getElementById('qNum').textContent     = `問題 ${currentIndex+1}`;
+  document.getElementById('qNum').textContent = `問題 ${currentIndex+1}`;
   document.getElementById('qProgress').textContent = `${currentIndex+1} / ${total}`;
-  document.getElementById('qProblem').textContent  = prob.display;
+  document.getElementById('qProblem').textContent = prob.display;
   document.getElementById('answerHint').textContent = '';
-  document.getElementById('answerHint').className   = 'answer-hint';
+  document.getElementById('answerHint').className = 'answer-hint';
   document.getElementById('practiceAnswerDiv').innerHTML = '';
-  document.getElementById('progressBar').style.width = (currentIndex/total*100)+'%';
+  document.getElementById('progressBar').style.width = (currentIndex / total * 100) + '%';
 
   const lv = lastLevel;
   const isTwoBox = lv && lv.inputType === 'two';
 
-  document.getElementById('singleAnswerRow').style.display = isTwoBox ? 'none' : 'flex';
-  document.getElementById('twoAnswerRow').style.display    = isTwoBox ? 'flex' : 'none';
+  // 旧入力欄は内部的には残すが、表示はテンキー側に一本化
+  document.getElementById('singleAnswerRow').style.display = 'none';
+  document.getElementById('twoAnswerRow').style.display = 'none';
 
   if(isTwoBox) {
     const i1 = document.getElementById('answerInput1');
     const i2 = document.getElementById('answerInput2');
-    i1.value=''; i1.className='answer-input'; i1.disabled=false;
-    i2.value=''; i2.className='answer-input'; i2.disabled=false;
-    i1.focus();
+    i1.value = '';
+    i1.className = 'answer-input';
+    i1.disabled = false;
+    i2.value = '';
+    i2.className = 'answer-input';
+    i2.disabled = false;
   } else {
     const input = document.getElementById('answerInput');
-    input.value     = '';
+    input.value = '';
     input.className = 'answer-input';
-    input.disabled  = false;
-    input.focus();
+    input.disabled = false;
+  }
+
+  // テンキー状態を毎問リセット
+  npValue = '';
+  npValue1 = '';
+  npValue2 = '';
+  npTwoPhase = 1;
+
+  const submitBtn = document.getElementById('npSubmit');
+  if(submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = isTwoBox ? '次へ →' : '決定';
   }
 
   document.getElementById('nextBtn').disabled = true;
   document.getElementById('opGuide').textContent = isTwoBox
-    ? '2つの数を入力（Tab で移動）→ Enter で採点 → 自動で次へ'
-    : '答えを入力 → Enter で採点　→　自動で次の問題へ';
+    ? '2つの数を入力（Tabで2つ目へ）→ 決定で採点 → 自動で次へ'
+    : '答えを入力 → 決定で採点 → 自動で次の問題へ';
 
-  // 練習モード: 解答は判定後に表示
+  ['npDisplay','npDisplay1','npDisplay2'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.className = 'numpad-display';
+  });
+  const activeId = isTwoBox ? 'npDisplay1' : 'npDisplay';
+  const activeEl = document.getElementById(activeId);
+  if(activeEl) activeEl.classList.add('active');
 
+  syncVisibleInputs();
+  npRefresh();
   problemStartTime = Date.now();
 }
 
@@ -1167,6 +1211,27 @@ function npGetDisplay() {
 function npGetDisplay1() { return document.getElementById('npDisplay1'); }
 function npGetDisplay2() { return document.getElementById('npDisplay2'); }
 
+function syncVisibleInputs() {
+  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  const singleBox = document.getElementById('numpadSingleBox');
+  const twoBox = document.getElementById('numpadTwoBox');
+  const input = document.getElementById('answerInput');
+  const input1 = document.getElementById('answerInput1');
+  const input2 = document.getElementById('answerInput2');
+  const singleRow = document.getElementById('singleAnswerRow');
+  const twoRow = document.getElementById('twoAnswerRow');
+
+  if(singleBox) singleBox.style.display = isTwoBox ? 'none' : 'block';
+  if(twoBox) twoBox.style.display = isTwoBox ? 'block' : 'none';
+
+  if(singleRow) singleRow.style.display = 'none';
+  if(twoRow) twoRow.style.display = 'none';
+
+  if(input) input.value = npValue;
+  if(input1) input1.value = npValue1;
+  if(input2) input2.value = npValue2;
+}
+
 function npRefresh() {
   const isTwoBox = lastLevel && lastLevel.inputType === 'two';
   if(isTwoBox) {
@@ -1181,6 +1246,7 @@ function npRefresh() {
     if(d) d.textContent = npValue==='' ? '？' : npValue;
     if(d) d.classList.toggle('active', npValue==='');
   }
+  syncVisibleInputs();
 }
 
 function npInput(ch) {
@@ -1301,7 +1367,7 @@ function checkAnswerTwo(v1, v2) {
   }
   document.getElementById('npSubmit').disabled = true;
   const snapIndex2 = currentIndex;
-  const delay = correct ? 650 : (selectedMode==='practice' ? 1200 : 650);
+  const delay = correct ? 80 : (selectedMode==='practice' ? 180 : 80);
   setTimeout(()=>{ if(answered && currentIndex===snapIndex2) nextQuestion(); }, delay);
 }
 
@@ -1345,7 +1411,7 @@ function checkAnswer() {
   }
   document.getElementById('npSubmit').disabled = true;
   const snapIndex2 = currentIndex;
-  const delay = correct ? 650 : (selectedMode==='practice' ? 1200 : 650);
+  const delay = correct ? 80 : (selectedMode==='practice' ? 180 : 80);
   setTimeout(()=>{ if(answered && currentIndex===snapIndex2) nextQuestion(); }, delay);
 }
 
