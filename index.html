@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>計算力育成プログラム</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:  #1A3A5C;
+    --teal:  #0F6E56;
+    --teal2: #1A9A78;
+    --amber: #C8820A;
+    --coral: #AA3322;
+    --pale:  #F4F7FA;
+    --pale2: #E8EEF5;
+    --ink:   #1E2532;
+    --ink2:  #3C4A60;
+    --mist:  #7A8BA0;
+    --white: #FFFFFF;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.10);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
+    background: var(--pale);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ── ヘッダー ── */
+  .app-header {
+    background: var(--navy);
+    color: white;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  .app-header h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.03em; }
+  .app-header .subtitle { font-size: 11px; opacity: 0.65; margin-top: 2px; }
+  .header-badge {
+    margin-left: auto;
+    background: var(--teal);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── 画面切り替え ── */
+  .screen { display: none; padding: 20px; max-width: 600px; margin: 0 auto; }
+  .screen.active { display: block; }
+
+  /* ── 級選択画面 ── */
+  .screen-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+  }
+  .screen-sub {
+    font-size: 12px;
+    color: var(--mist);
+    margin-bottom: 20px;
+  }
+  .level-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .level-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    box-shadow: var(--shadow);
+    transition: all 0.15s;
+  }
+  .level-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.14); }
+  .level-card.selected {
+    border-color: var(--teal);
+    background: #EBF5F1;
+  }
+  .level-card .badge {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: white;
+  }
+  .level-card .lname { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .level-card .lmeta { font-size: 11px; color: var(--mist); margin-top: 2px; }
+
+  /* ── モード選択 ── */
+  .mode-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .mode-card {
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    box-shadow: var(--shadow);
+    background: white;
+    transition: all 0.15s;
+  }
+  .mode-card.selected { border-color: var(--teal); background: #EBF5F1; }
+  .mode-card .micon { font-size: 22px; margin-bottom: 4px; }
+  .mode-card .mname { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .mode-card .mdesc { font-size: 11px; color: var(--mist); margin-top: 2px; line-height: 1.5; }
+
+  /* ── ボタン ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .btn-primary { background: var(--teal); color: white; width: 100%; font-size: 15px; }
+  .btn-primary:hover { background: var(--teal2); }
+  .btn-primary:disabled { background: var(--mist); cursor: not-allowed; }
+  .btn-secondary { background: var(--pale2); color: var(--ink2); }
+  .btn-secondary:hover { background: #d8e2ed; }
+  .btn-danger { background: var(--coral); color: white; }
+  .btn-sm { padding: 8px 16px; font-size: 12px; }
+
+  /* ── 問題画面 ── */
+  .quiz-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .quiz-level-badge {
+    background: var(--navy);
+    color: white;
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .quiz-progress {
+    flex: 1;
+    font-size: 12px;
+    color: var(--mist);
+    text-align: right;
+  }
+  .timer-bar-wrap {
+    background: var(--pale2);
+    border-radius: 6px;
+    height: 8px;
+    margin-bottom: 6px;
+    overflow: hidden;
+  }
+  .timer-bar {
+    height: 100%;
+    border-radius: 6px;
+    background: var(--teal);
+    transition: width 0.5s linear, background 0.3s;
+  }
+  .timer-bar.warning { background: var(--amber); }
+  .timer-bar.danger  { background: var(--coral); }
+  .timer-text {
+    font-size: 11px;
+    color: var(--mist);
+    text-align: right;
+    margin-bottom: 16px;
+  }
+  .progress-bar-wrap {
+    background: var(--pale2);
+    border-radius: 6px;
+    height: 5px;
+    margin-bottom: 20px;
+  }
+  .progress-bar {
+    height: 100%;
+    border-radius: 6px;
+    background: var(--teal2);
+    transition: width 0.3s;
+  }
+
+  /* ── 問題カード ── */
+  .question-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .q-num {
+    font-size: 11px;
+    color: var(--mist);
+    margin-bottom: 12px;
+  }
+  .q-problem {
+    font-size: 38px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: 0.05em;
+    margin-bottom: 24px;
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .q-frac {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 28px;
+    margin: 0 4px;
+  }
+  .q-frac-num { border-bottom: 2px solid var(--navy); padding: 0 4px; line-height: 1.1; }
+  .q-frac-den { line-height: 1.1; }
+
+  .answer-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .answer-input {
+    width: 140px;
+    padding: 10px 14px;
+    font-size: 24px;
+    font-weight: 700;
+    border: 2px solid var(--pale2);
+    border-radius: 10px;
+    text-align: center;
+    color: var(--navy);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .answer-input:focus { border-color: var(--teal); }
+  .answer-input.correct { border-color: var(--teal); background: #EBF5F1; }
+  .answer-input.incorrect { border-color: var(--coral); background: #FDECEA; }
+
+  .answer-hint {
+    font-size: 12px;
+    color: var(--mist);
+    margin-top: 10px;
+    min-height: 18px;
+  }
+  .answer-hint.correct-msg { color: var(--teal); font-weight: 700; }
+  .answer-hint.incorrect-msg { color: var(--coral); font-weight: 700; }
+
+  .quiz-action-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .quiz-action-row .btn { flex: 1; }
+
+  /* 練習モード解答表示 */
+  .practice-answer {
+    background: #EBF5F1;
+    border: 1.5px solid var(--teal);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--teal);
+    text-align: center;
+    margin-top: 12px;
+  }
+
+  /* ── 結果画面 ── */
+  .result-card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .result-header {
+    background: var(--navy);
+    color: white;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .result-header .big-score {
+    font-size: 32px;
+    font-weight: 800;
+  }
+  .result-header .score-denom { font-size: 18px; opacity: 0.7; }
+  .result-header .score-info { margin-left: auto; text-align: right; font-size: 12px; opacity: 0.8; }
+  .result-header .passed {
+    background: var(--teal);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .result-header .failed {
+    background: var(--coral);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .result-body { padding: 14px 18px; }
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat-item {
+    background: var(--pale);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .stat-item .sv { font-size: 22px; font-weight: 800; color: var(--navy); }
+  .stat-item .sl { font-size: 10px; color: var(--mist); margin-top: 2px; }
+
+  /* 問題ごとの結果リスト */
+  .detail-list { margin-top: 10px; }
+  .detail-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--pale2);
+    font-size: 12px;
+  }
+  .detail-item:last-child { border-bottom: none; }
+  .detail-item .di-num { color: var(--mist); width: 24px; flex-shrink: 0; }
+  .detail-item .di-prob { flex: 1; color: var(--ink2); }
+  .detail-item .di-ans { font-weight: 700; color: var(--ink); }
+  .detail-item .di-mark {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .di-mark.ok { background: #D4EDDA; color: var(--teal); }
+  .di-mark.ng { background: #FDECEA; color: var(--coral); }
+  .di-mark.skip { background: var(--pale2); color: var(--mist); }
+  .di-wrong-ans { color: var(--coral); font-size: 11px; }
+
+  /* 履歴画面 */
+  .history-list { }
+  .history-item {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .hi-badge {
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .hi-info { flex: 1; }
+  .hi-score { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .hi-meta { font-size: 11px; color: var(--mist); margin-top: 2px; }
+  .hi-result {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 5px;
+  }
+  .hi-result.pass { background: #EBF5F1; color: var(--teal); }
+  .hi-result.fail { background: #FDECEA; color: var(--coral); }
+
+  /* タブ */
+  .tab-row {
+    display: flex;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--mist);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab-btn.active { background: var(--navy); color: white; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--mist);
+  }
+  .empty-state .ei { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  /* ── カウントダウン ── */
+  @keyframes cdPop {
+    0%   { transform: scale(1.8); opacity: 0; }
+    50%  { opacity: 1; }
+    100% { transform: scale(1); opacity: 0.45; }
+  }
+  #countdownOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    pointer-events: none;
+  }
+  #countdownNum {
+    font-size: 220px;
+    font-weight: 900;
+    line-height: 1;
+    color: #1A3A5C;
+    opacity: 0.45;
+    user-select: none;
+    animation: cdPop 0.4s cubic-bezier(0.22,1,0.36,1);
+  }
+
+  /* ── テンキーパッド ── */
+  .numpad-wrap {
+    margin-top: 12px;
+  }
+  /* 入力表示エリア */
+  .numpad-display {
+    background: var(--pale2);
+    border: 2px solid var(--pale2);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--navy);
+    text-align: right;
+    min-height: 52px;
+    letter-spacing: 0.04em;
+    margin-bottom: 10px;
+    transition: border-color 0.2s, background 0.2s;
+    word-break: break-all;
+  }
+  .numpad-display.active {
+    border-color: var(--teal);
+    background: white;
+  }
+  .numpad-display.correct  { border-color: var(--teal);  background: #EDFFF4; color: var(--teal); }
+  .numpad-display.incorrect{ border-color: var(--coral); background: #FDECEA; color: var(--coral); }
+
+  /* 2ボックス用ラベル */
+  .numpad-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--mist);
+    margin-bottom: 4px;
+    letter-spacing: 0.04em;
+  }
+  .numpad-two-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .numpad-two-row .nd-wrap { flex: 1; }
+  .numpad-two-row .nd-sep {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--mist);
+    flex-shrink: 0;
+  }
+
+  /* グリッド */
+  .numpad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .np-btn {
+    background: white;
+    border: 1.5px solid var(--pale2);
+    border-radius: 12px;
+    padding: 0;
+    height: 58px;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    transition: background 0.1s, transform 0.1s;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .np-btn:active { background: var(--pale2); transform: scale(0.95); }
+  .np-btn.np-minus { color: var(--amber); font-size: 26px; }
+  .np-btn.np-del   { color: var(--coral); font-size: 20px; }
+  .np-btn.np-zero  { }
+  .np-btn.np-next  { background: var(--pale2); color: var(--ink2); font-size: 13px; font-weight: 700; }
+
+  /* 決定ボタン */
+  .np-submit {
+    width: 100%;
+    padding: 14px;
+    background: var(--teal);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    box-shadow: 0 3px 10px rgba(15,110,86,0.3);
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .np-submit:active { background: var(--teal2); transform: scale(0.98); }
+  .np-submit:disabled { background: var(--mist); box-shadow: none; }
+
+</style>
+</head>
+<body>
+
+
+<div class="countdown-overlay" id="countdownOverlay" style="display:none;">
+  <div class="countdown-num" id="countdownNum">3</div>
+  <div class="countdown-label" id="countdownLabel">準備して...</div>
+</div>
+
+<div class="app-header">
+  <div>
+    <div class="app-header h1" style="font-size:16px;font-weight:700;">計算力育成プログラム</div>
+    <div class="subtitle">京進 TOPΣ 本郷校</div>
+  </div>
+  <div class="header-badge" id="headerBadge">MVP v1.0</div>
+</div>
+
+<!-- 画面1: 級選択 -->
+<div class="screen active" id="screenSelect">
+  <p class="screen-title" style="margin-top:16px;">問題を選ぶ</p>
+  <p class="screen-sub">級を選んでスタートしてください</p>
+
+  <div class="level-grid" id="levelGrid"></div>
+
+  <p class="screen-title" style="font-size:15px; margin-bottom:8px;">モードを選ぶ</p>
+  <div class="mode-row">
+    <div class="mode-card selected" id="modePractice" onclick="selectMode('practice')">
+      <div class="micon">📖</div>
+      <div class="mname">練習モード</div>
+      <div class="mdesc">不正解のとき正解が表示されます</div>
+    </div>
+    <div class="mode-card" id="modeTest" onclick="selectMode('test')">
+      <div class="micon">⏱</div>
+      <div class="mname">検定モード</div>
+      <div class="mdesc">解答を隠して本番形式</div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="startBtn" onclick="startQuiz()" disabled>
+    スタート →
+  </button>
+
+  <div id="historySection" style="margin-top:24px;"></div>
+</div>
+
+<!-- 画面2: 問題 -->
+<div class="screen" id="screenQuiz">
+  <div class="quiz-header">
+    <div class="quiz-level-badge" id="qLevelBadge">10級</div>
+    <div class="quiz-progress" id="qProgress">1 / 20</div>
+    <button class="btn btn-secondary btn-sm" onclick="abortQuiz()" style="background:#FDECEA;color:#AA3322;border:1.5px solid #AA3322;">■ 中断</button>
+  </div>
+
+  <div class="timer-bar-wrap">
+    <div class="timer-bar" id="timerBar" style="width:100%"></div>
+  </div>
+  <div class="timer-text" id="timerText">制限時間: 3:00</div>
+  <div style="font-size:11px;color:var(--mist);text-align:center;margin-bottom:8px;letter-spacing:0.02em;" id="opGuide">答えを入力 → Enter で採点　→　自動で次の問題へ</div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progressBar" style="width:0%"></div>
+  </div>
+
+  <div class="question-card" id="questionCard">
+    <div class="q-num" id="qNum">問題 1</div>
+    <div class="q-problem" id="qProblem">　</div>
+
+    <!-- 通常の1ボックス入力 -->
+    <div class="answer-row" id="singleAnswerRow">
+      <div style="font-size:28px;font-weight:700;color:var(--ink);">＝</div>
+      <input class="answer-input" id="answerInput"
+        type="text" inputmode="numeric" autocomplete="off"
+        placeholder="答えを入力 → Enter"
+        onkeydown="handleKeydown(event)"
+        oninput="handleInput(event)">
+    </div>
+
+    <!-- 2ボックス入力（和と積など） -->
+    <div class="answer-row" id="twoAnswerRow" style="display:none; gap:8px; flex-wrap:wrap; justify-content:center;">
+      <input class="answer-input" id="answerInput1"
+        type="text" inputmode="numeric" autocomplete="off"
+        style="width:100px;"
+        placeholder="□"
+        onkeydown="handleKeydownTwo(event,1)">
+      <div style="font-size:20px;font-weight:700;color:var(--mist);align-self:center;">と</div>
+      <input class="answer-input" id="answerInput2"
+        type="text" inputmode="numeric" autocomplete="off"
+        style="width:100px;"
+        placeholder="□"
+        onkeydown="handleKeydownTwo(event,2)">
+    </div>
+
+    <div class="answer-hint" id="answerHint"></div>
+    <div id="practiceAnswerDiv"></div>
+  </div>
+
+  <!-- テンキーパッド -->
+  <div style="max-width:340px; margin:0 auto; padding:0 4px;">
+    <div class="numpad-grid">
+      <button class="np-btn" ontouchstart="" onclick="npInput('7')">7</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('8')">8</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('9')">9</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('4')">4</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('5')">5</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('6')">6</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('1')">1</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('2')">2</button>
+      <button class="np-btn" ontouchstart="" onclick="npInput('3')">3</button>
+      <button class="np-btn np-minus" ontouchstart="" onclick="npInput('-')">−</button>
+      <button class="np-btn np-zero"  ontouchstart="" onclick="npInput('0')">0</button>
+      <button class="np-btn np-del"   ontouchstart="" onclick="npDel()">⌫</button>
+    </div>
+    <button class="np-submit" id="npSubmit" onclick="npSubmit()">決定</button>
+  </div>
+
+  <div class="quiz-action-row" style="margin-top:10px;">
+    <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" disabled style="display:none;">次へ →</button>
+  </div>
+</div>
+
+<!-- 画面3: 結果 -->
+<div class="screen" id="screenResult">
+  <p class="screen-title" style="margin-top:16px;">結果</p>
+
+  <div class="result-card">
+    <div class="result-header" id="resultHeader"></div>
+    <div class="result-body">
+      <div class="stat-row" id="statRow"></div>
+      <div class="detail-list" id="detailList"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;margin-top:4px;">
+    <button class="btn btn-secondary" style="flex:1" onclick="showScreen('screenSelect')">← 戻る</button>
+    <button class="btn btn-primary" style="flex:1" onclick="retryQuiz()">もう一度</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// 定数・設定
+// ════════════════════════════════════════════════════════
+const LEVELS = [
+  {
+    key:"10kyu", label:"10級", color:"#0F6E56",
+    title:"10の補数", desc:"20問・3分",
+    timeLimit:180, nQ:20, passRate:0.90,
+    gen: ()=>genComplement10()
+  },
+  {
+    key:"9kyu", label:"9級", color:"#0F6E56",
+    title:"たし算（1桁）", desc:"20問・2分",
+    timeLimit:120, nQ:20, passRate:0.88,
+    gen: ()=>genAdd1digit()
+  },
+  {
+    key:"8kyu", label:"8級", color:"#1A9A78",
+    title:"100の補数", desc:"20問・3分",
+    timeLimit:180, nQ:20, passRate:0.88,
+    gen: ()=>genComplement100()
+  },
+  {
+    key:"7kyu", label:"7級", color:"#1A9A78",
+    title:"引き算（2桁）", desc:"20問・2分30秒",
+    timeLimit:150, nQ:20, passRate:0.88,
+    gen: ()=>genSub2digit()
+  },
+  {
+    key:"6kyu", label:"6級", color:"#3B8C2A",
+    title:"九九（2〜5の段）", desc:"20問・2分30秒",
+    timeLimit:150, nQ:20, passRate:1.0,
+    gen: ()=>genKuku25()
+  },
+  {
+    key:"5kyu", label:"5級", color:"#3B8C2A",
+    title:"九九（全段）", desc:"20問・1分30秒",
+    timeLimit:90, nQ:20, passRate:1.0,
+    gen: ()=>genKukuAll()
+  },
+  {
+    key:"4kyu1", label:"4級①", color:"#C8820A",
+    title:"3桁のたし算", desc:"12問・2分",
+    timeLimit:120, nQ:12, passRate:0.88,
+    gen: ()=>gen3digitAdd()
+  },
+  {
+    key:"4kyu2", label:"4級②", color:"#C8820A",
+    title:"3桁の引き算", desc:"12問・2分",
+    timeLimit:120, nQ:12, passRate:0.88,
+    gen: ()=>gen3digitSub()
+  },
+  {
+    key:"3kyu1", label:"3級①", color:"#3B8C2A",
+    title:"2桁×1桁", desc:"12問・2分30秒",
+    timeLimit:150, nQ:12, passRate:0.88,
+    gen: ()=>gen2x1()
+  },
+  {
+    key:"sandan_e", label:"三段E", color:"#AA3322",
+    title:"和と積 → 2数を求める", desc:"20問・3分",
+    timeLimit:180, nQ:20, passRate:0.85,
+    inputType:"two",   // ← 2ボックス入力
+    gen: ()=>genSumProduct()
+  },
+];
+
+// ════════════════════════════════════════════════════════
+// 問題生成
+// ════════════════════════════════════════════════════════
+function rnd(a, b) { return Math.floor(Math.random()*(b-a+1))+a; }
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function makeProblem(display, answer) {
+  return { display, answer: String(answer) };
+}
+
+function genComplement10() {
+  const pool = [];
+  for(let b=1;b<=9;b++) pool.push(makeProblem(`10 − ${b}`, 10-b));
+  const result = [];
+  while(result.length < 20) result.push(...shuffle(pool));
+  return shuffle(result).slice(0,20);
+}
+
+function genAdd1digit() {
+  const pool = [];
+  for(let a=1;a<=9;a++)
+    for(let b=1;b<=9;b++)
+      pool.push(makeProblem(`${a} ＋ ${b}`, a+b));
+  return shuffle(pool).slice(0,20);
+}
+
+function genComplement100() {
+  const pool = [];
+  for(let tens=1;tens<=9;tens++)
+    for(let ones=1;ones<=9;ones++) {
+      const b=tens*10+ones;
+      pool.push(makeProblem(`100 − ${b}`, 100-b));
+    }
+  return shuffle(pool).slice(0,20);
+}
+
+function genSub2digit() {
+  const pool = [];
+  for(let a=21;a<=99;a++)
+    for(let b=11;b<a;b++)
+      if(a%10 < b%10) // 繰り下がりあり
+        pool.push(makeProblem(`${a} − ${b}`, a-b));
+  return shuffle(pool).slice(0,20);
+}
+
+function genKuku25() {
+  const pool=[];
+  for(let a=2;a<=5;a++)
+    for(let b=2;b<=9;b++)
+      pool.push(makeProblem(`${a} × ${b}`, a*b));
+  const r=[];
+  while(r.length<20) r.push(...shuffle(pool));
+  return shuffle(r).slice(0,20);
+}
+
+function genKukuAll() {
+  const pool=[];
+  for(let a=2;a<=9;a++)
+    for(let b=2;b<=9;b++)
+      pool.push(makeProblem(`${a} × ${b}`, a*b));
+  return shuffle(pool).slice(0,20);
+}
+
+function gen3digitAdd() {
+  const pool=[];
+  for(let a=201;a<=599;a+=17)
+    for(let b=201;b<=599;b+=19)
+      if(a+b>650 && a+b<1000)
+        pool.push(makeProblem(`${a} ＋ ${b}`, a+b));
+  return shuffle(pool).slice(0,12);
+}
+
+function gen3digitSub() {
+  const pool=[];
+  for(let a=301;a<=899;a+=23)
+    for(let b=101;b<a-100;b+=17)
+      if(a%10<b%10 || a%100<b%100)
+        pool.push(makeProblem(`${a} − ${b}`, a-b));
+  return shuffle(pool).slice(0,12);
+}
+
+function gen2x1() {
+  const pool=[];
+  for(let a=12;a<=99;a++)
+    for(let b=2;b<=9;b++)
+      pool.push(makeProblem(`${a} × ${b}`, a*b));
+  return shuffle(pool).slice(0,12);
+}
+
+function genSumProduct() {
+  // 和と積から2数を求める問題
+  // 九九内(1〜9)の組み合わせをベース + 10/12/15は片方が1桁の組み合わせのみ追加
+
+  function makeProb(a, b) {
+    return {
+      display: `和が ${a+b}、積が ${a*b}`,
+      answer: `${a} と ${b}`,
+      answer2: [a, b]
+    };
+  }
+
+  // ── 両方プラス用プール ──────────────────────────────
+  const plusCore = [];
+  // 九九の範囲（1〜9同士）
+  for(let a=1;a<=9;a++)
+    for(let b=a+1;b<=9;b++)
+      plusCore.push([a,b]);
+
+  // 九九外: 10は1桁と組み合わせ自由、12/15は必ずもう一方が1桁
+  const plusExtra = [
+    [1,10],[2,10],[3,10],[4,10],[5,10],
+    [3,12],[4,12],[5,12],[6,12],
+    [3,15],[4,15],[5,15],
+  ];
+
+  // 前半: 九九コアから7問 + 九九外から3問
+  const plusProbs = shuffle(plusCore).slice(0,7).map(([a,b])=>makeProb(a,b))
+    .concat(shuffle(plusExtra).slice(0,3).map(([a,b])=>makeProb(a,b)));
+
+  // ── 片方マイナス（積<0）─────────────────────────────
+  const mixCore = [];
+  for(let a=1;a<=9;a++)
+    for(let b=1;b<=9;b++)
+      if(a!==b) mixCore.push([a,-b]);
+
+  const mixExtra = [
+    [2,-10],[3,-10],[4,-10],
+    [3,-12],[4,-12],
+    [3,-15],[4,-15],
+  ];
+
+  const mixProbs = shuffle(mixCore).slice(0,4).map(([a,b])=>makeProb(a,b))
+    .concat(shuffle(mixExtra).slice(0,2).map(([a,b])=>makeProb(a,b)));
+
+  // ── 両方マイナス（積>0・和<0）──────────────────────
+  const minusCore = [];
+  for(let a=1;a<=9;a++)
+    for(let b=a+1;b<=9;b++)
+      minusCore.push([-a,-b]);
+
+  const minusExtra = [
+    [-3,-10],[-4,-10],[-5,-10],
+    [-3,-12],[-4,-12],
+    [-3,-15],[-4,-15],
+  ];
+
+  const minusProbs = shuffle(minusCore).slice(0,3).map(([a,b])=>makeProb(a,b))
+    .concat(shuffle(minusExtra).slice(0,1).map(([a,b])=>makeProb(a,b)));
+
+  const all = shuffle([...plusProbs, ...mixProbs, ...minusProbs]);
+  return all.slice(0,20);
+}
+
+// ════════════════════════════════════════════════════════
+// 状態
+// ════════════════════════════════════════════════════════
+let selectedLevel = null;
+let selectedMode  = 'practice';
+let currentProblems = [];
+let currentIndex    = 0;
+let results         = [];    // {prob, answer, userAnswer, correct, time}
+let sessionHistory  = [];    // 過去セッション
+let sessionTimer    = null;
+let problemTimer    = null;
+let sessionStartTime= 0;
+let problemStartTime= 0;
+let totalTime       = 0;     // セッション経過秒
+let answered        = false;
+let lastLevel       = null;
+let lastMode        = null;
+
+// ════════════════════════════════════════════════════════
+// UI初期化
+// ════════════════════════════════════════════════════════
+function init() {
+  renderLevelGrid();
+  renderHistorySection();
+}
+
+function renderLevelGrid() {
+  const grid = document.getElementById('levelGrid');
+  grid.innerHTML = LEVELS.map(lv => `
+    <div class="level-card" id="lc_${lv.key}" onclick="selectLevel('${lv.key}')">
+      <div class="badge" style="background:${lv.color}">${lv.label}</div>
+      <div class="lname">${lv.title}</div>
+      <div class="lmeta">${lv.desc}</div>
+    </div>
+  `).join('');
+}
+
+function selectLevel(key) {
+  selectedLevel = key;
+  document.querySelectorAll('.level-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById(`lc_${key}`).classList.add('selected');
+  document.getElementById('startBtn').disabled = false;
+}
+
+function selectMode(mode) {
+  selectedMode = mode;
+  document.getElementById('modePractice').classList.toggle('selected', mode==='practice');
+  document.getElementById('modeTest').classList.toggle('selected', mode==='test');
+}
+
+// ════════════════════════════════════════════════════════
+// クイズ開始
+// ════════════════════════════════════════════════════════
+function startQuiz() {
+  if(!selectedLevel) return;
+  const lv = LEVELS.find(l=>l.key===selectedLevel);
+  lastLevel = lv;
+  lastMode  = selectedMode;
+
+  currentProblems = lv.gen();
+  currentIndex    = 0;
+  results         = [];
+  answered        = false;
+  totalTime       = 0;
+
+  showScreen('screenQuiz');
+  document.getElementById('qLevelBadge').textContent = lv.label;
+  document.getElementById('qLevelBadge').style.background =
+    selectedMode==='test' ? '#AA3322' : '#1A3A5C';
+
+  // カウントダウン
+  startCountdown(()=>{
+    sessionStartTime = Date.now();
+    startSessionTimer(lv.timeLimit);
+    showQuestion();
+  });
+}
+
+function startCountdown(callback) {
+  const overlay = document.getElementById('countdownOverlay');
+  const numEl   = document.getElementById('countdownNum');
+  const lblEl   = document.getElementById('countdownLabel');
+  const lv      = lastLevel;
+  overlay.style.display = 'flex';
+  let count = 3;
+
+  function tick() {
+    if(count === 0) {
+      overlay.style.display = 'none';
+      callback();
+      return;
+    }
+    numEl.textContent = count;
+    numEl.style.animation = 'none';
+    void numEl.offsetWidth;
+    numEl.style.animation = 'cdPop 0.4s cubic-bezier(0.22,1,0.36,1)';
+    lblEl.textContent = '';
+    count--;
+    setTimeout(tick, 900);
+  }
+  tick();
+}
+
+function startSessionTimer(limitSec) {
+  clearInterval(sessionTimer);
+  const bar   = document.getElementById('timerBar');
+  const text  = document.getElementById('timerText');
+  let elapsed = 0;
+
+  sessionTimer = setInterval(()=>{
+    elapsed++;
+    totalTime = elapsed;
+    const remain = limitSec - elapsed;
+    if(remain <= 0) {
+      clearInterval(sessionTimer);
+      finishQuiz(true); // 時間切れ
+      return;
+    }
+    const pct = (remain/limitSec)*100;
+    bar.style.width = pct+'%';
+    bar.className = 'timer-bar' +
+      (pct<=15?' danger': pct<=30?' warning':'');
+    const m=Math.floor(remain/60), s=remain%60;
+    text.textContent = `残り ${m}:${s<10?'0':''}${s}`;
+  }, 1000);
+}
+
+function showQuestion() {
+  const prob  = currentProblems[currentIndex];
+  const total = currentProblems.length;
+  answered    = false;
+
+  // 基本表示の更新
+  document.getElementById('qNum').textContent      = `問題 ${currentIndex+1}`;
+  document.getElementById('qProgress').textContent = `${currentIndex+1} / ${total}`;
+  document.getElementById('qProblem').textContent  = prob.display;
+  document.getElementById('answerHint').textContent = '';
+  document.getElementById('answerHint').className  = 'answer-hint';
+  document.getElementById('practiceAnswerDiv').innerHTML = '';
+  document.getElementById('progressBar').style.width = (currentIndex/total*100)+'%';
+  document.getElementById('nextBtn').disabled = true;
+
+  // 入力モードの切り替え
+  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  document.getElementById('singleAnswerRow').style.display = isTwoBox ? 'none' : 'flex';
+  document.getElementById('twoAnswerRow').style.display    = isTwoBox ? 'flex' : 'none';
+
+  // ガイドテキスト更新
+  document.getElementById('opGuide').textContent = isTwoBox
+    ? '2つの数を入力（Tab で移動）→ Enter で採点 → 自動で次へ'
+    : '答えを入力 → Enter で採点　→　自動で次の問題へ';
+
+  // テンキー状態リセット
+  npValue=''; npValue1=''; npValue2=''; npTwoPhase=1;
+  const sub = document.getElementById('npSubmit');
+  if(sub) { sub.disabled=false; sub.textContent = isTwoBox ? '次へ →' : '決定'; }
+  npRefresh();
+  // displayのclass初期化
+  ['npDisplay','npDisplay1','npDisplay2'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.className='numpad-display'+(id==='npDisplay'&&!isTwoBox?' active':id==='npDisplay1'&&isTwoBox?' active':'');
+  });
+
+  problemStartTime = Date.now();
+}
+
+
+function startSessionTimer(limitSec) {
+  clearInterval(sessionTimer);
+  const bar   = document.getElementById('timerBar');
+  const text  = document.getElementById('timerText');
+  let elapsed = 0;
+
+  sessionTimer = setInterval(()=>{
+    elapsed++;
+    totalTime = elapsed;
+    const remain = limitSec - elapsed;
+    if(remain <= 0) {
+      clearInterval(sessionTimer);
+      finishQuiz(true); // 時間切れ
+      return;
+    }
+    const pct = (remain/limitSec)*100;
+    bar.style.width = pct+'%';
+    bar.className = 'timer-bar' +
+      (pct<=15?' danger': pct<=30?' warning':'');
+    const m=Math.floor(remain/60), s=remain%60;
+    text.textContent = `残り ${m}:${s<10?'0':''}${s}`;
+  }, 1000);
+}
+
+function showQuestion() {
+  const prob = currentProblems[currentIndex];
+  const total= currentProblems.length;
+  answered   = false;
+
+  document.getElementById('qNum').textContent     = `問題 ${currentIndex+1}`;
+  document.getElementById('qProgress').textContent = `${currentIndex+1} / ${total}`;
+  document.getElementById('qProblem').textContent  = prob.display;
+  document.getElementById('answerHint').textContent = '';
+  document.getElementById('answerHint').className   = 'answer-hint';
+  document.getElementById('practiceAnswerDiv').innerHTML = '';
+  document.getElementById('progressBar').style.width = (currentIndex/total*100)+'%';
+
+  const lv = lastLevel;
+  const isTwoBox = lv && lv.inputType === 'two';
+
+  document.getElementById('singleAnswerRow').style.display = isTwoBox ? 'none' : 'flex';
+  document.getElementById('twoAnswerRow').style.display    = isTwoBox ? 'flex' : 'none';
+
+  if(isTwoBox) {
+    const i1 = document.getElementById('answerInput1');
+    const i2 = document.getElementById('answerInput2');
+    i1.value=''; i1.className='answer-input'; i1.disabled=false;
+    i2.value=''; i2.className='answer-input'; i2.disabled=false;
+    i1.focus();
+  } else {
+    const input = document.getElementById('answerInput');
+    input.value     = '';
+    input.className = 'answer-input';
+    input.disabled  = false;
+    input.focus();
+  }
+
+  document.getElementById('nextBtn').disabled = true;
+  document.getElementById('opGuide').textContent = isTwoBox
+    ? '2つの数を入力（Tab で移動）→ Enter で採点 → 自動で次へ'
+    : '答えを入力 → Enter で採点　→　自動で次の問題へ';
+
+  // 練習モード: 解答は判定後に表示
+
+  problemStartTime = Date.now();
+}
+
+// ════════════════════════════════════════════════════════
+// 答え入力・判定
+// ════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
+// テンキーパッド
+// ══════════════════════════════════════════════════
+let npValue    = '';   // 現在の入力値（文字列）
+let npTwoPhase = 1;    // 2ボックスのとき1か2
+let npValue1   = '';
+let npValue2   = '';
+
+function npGetDisplay() {
+  return document.getElementById('npDisplay');
+}
+function npGetDisplay1() { return document.getElementById('npDisplay1'); }
+function npGetDisplay2() { return document.getElementById('npDisplay2'); }
+
+function npRefresh() {
+  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  if(isTwoBox) {
+    const d1 = npGetDisplay1(); const d2 = npGetDisplay2();
+    if(d1) d1.textContent = npValue1==='' ? '？' : npValue1;
+    if(d2) d2.textContent = npValue2==='' ? '？' : npValue2;
+    // アクティブなボックスをハイライト
+    if(d1) d1.classList.toggle('active', npTwoPhase===1 && npValue1==='');
+    if(d2) d2.classList.toggle('active', npTwoPhase===2 && npValue2==='');
+  } else {
+    const d = npGetDisplay();
+    if(d) d.textContent = npValue==='' ? '？' : npValue;
+    if(d) d.classList.toggle('active', npValue==='');
+  }
+}
+
+function npInput(ch) {
+  if(answered) return;
+  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  if(isTwoBox) {
+    if(npTwoPhase===1) {
+      if(ch==='-' && npValue1!=='') return; // 先頭のみ
+      if(ch==='-' && npValue1==='') { npValue1='-'; }
+      else if(npValue1.length < 4)   npValue1 += ch;
+    } else {
+      if(ch==='-' && npValue2==='') { npValue2='-'; }
+      else if(npValue2.length < 4)   npValue2 += ch;
+    }
+  } else {
+    if(ch==='-' && npValue!=='') return;
+    if(ch==='-' && npValue==='') { npValue='-'; }
+    else if(npValue.length < 5)   npValue += ch;
+  }
+  npRefresh();
+
+  // 2ボックス: 1つ目が入力されたら2つ目の表示をアクティブに
+  if(isTwoBox && npTwoPhase===1 && npValue1.length===1 && npValue1!=='-') {
+    // フェーズは自動で切り替えない（決定ボタンかsubmitで）
+  }
+}
+
+function npDel() {
+  if(answered) return;
+  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  if(isTwoBox) {
+    if(npTwoPhase===1) npValue1 = npValue1.slice(0,-1);
+    else               npValue2 = npValue2.slice(0,-1);
+  } else {
+    npValue = npValue.slice(0,-1);
+  }
+  npRefresh();
+}
+
+function npSubmit() {
+  if(answered) return;
+  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  if(isTwoBox) {
+    if(npTwoPhase===1) {
+      // 1つ目が空なら何もしない
+      if(npValue1==='' || npValue1==='-') return;
+      // 1つ目確定 → 2つ目入力フェーズへ
+      npTwoPhase = 2;
+      const d1 = npGetDisplay1();
+      if(d1) { d1.classList.remove('active'); }
+      const d2 = npGetDisplay2();
+      if(d2) d2.classList.add('active');
+      // submitボタンのラベルを変更
+      document.getElementById('npSubmit').textContent = '決定';
+      return;
+    }
+    // 2つ目も入力済みなら採点
+    if(npValue2==='' || npValue2==='-') return;
+    checkAnswerTwo(npValue1, npValue2);
+  } else {
+    if(npValue==='' || npValue==='-') return;
+    checkAnswer();
+  }
+}
+
+// PCキーボードとの共存
+document.addEventListener('keydown', function(e) {
+  if(answered) { if(e.key==='Enter') { e.preventDefault(); nextQuestion(); } return; }
+  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  if(e.key>='0' && e.key<='9') { e.preventDefault(); npInput(e.key); }
+  else if(e.key==='-')  { e.preventDefault(); npInput('-'); }
+  else if(e.key==='Backspace') { e.preventDefault(); npDel(); }
+  else if(e.key==='Enter') {
+    e.preventDefault();
+    if(isTwoBox && npTwoPhase===1 && npValue1!=='' && npValue1!=='-') {
+      npSubmit(); // 1つ目確定
+    } else if(isTwoBox && npTwoPhase===2 && npValue2!=='' && npValue2!=='-') {
+      npSubmit(); // 採点
+    } else if(!isTwoBox && npValue!=='' && npValue!=='-') {
+      npSubmit(); // 採点
+    }
+  }
+  else if(e.key==='Tab' && isTwoBox) {
+    e.preventDefault(); npSubmit(); // Tabで次のボックスへ
+  }
+});
+
+// handleKeydown は不要になるが互換のため残す
+function handleKeydown(e) {}
+function handleKeydownTwo(e, boxNum) {}
+
+function checkAnswerTwo(v1, v2) {
+  if(answered) return;
+  const prob    = currentProblems[currentIndex];
+  const elapsed = (Date.now()-problemStartTime)/1000;
+  const [a,b]   = prob.answer2;
+  const correct = (Number(v1)===a && Number(v2)===b) || (Number(v1)===b && Number(v2)===a);
+
+  answered = true;
+  results.push({ prob:prob.display, answer:prob.answer, userAnswer:`${v1} と ${v2}`, correct, time:elapsed });
+
+  const hint = document.getElementById('answerHint');
+  const d1 = document.getElementById('npDisplay1');
+  const d2 = document.getElementById('npDisplay2');
+  if(correct) {
+    if(d1) { d1.classList.remove('active'); d1.classList.add('correct'); }
+    if(d2) { d2.classList.remove('active'); d2.classList.add('correct'); }
+    hint.textContent='✓ 正解！'; hint.className='answer-hint correct-msg';
+    document.getElementById('questionCard').classList.add('flash-correct');
+    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-correct'),500);
+  } else {
+    if(d1) { d1.classList.remove('active'); d1.classList.add('incorrect'); }
+    if(d2) { d2.classList.remove('active'); d2.classList.add('incorrect'); }
+    const showAns = selectedMode==='practice' ? `　正解: ${prob.answer}` : '';
+    hint.textContent=`✗ 不正解${showAns}`; hint.className='answer-hint incorrect-msg';
+    document.getElementById('questionCard').classList.add('flash-incorrect');
+    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-incorrect'),500);
+  }
+  document.getElementById('npSubmit').disabled = true;
+  const snapIndex2 = currentIndex;
+  const delay = correct ? 650 : (selectedMode==='practice' ? 1200 : 650);
+  setTimeout(()=>{ if(answered && currentIndex===snapIndex2) nextQuestion(); }, delay);
+}
+
+// document全体でEnterを監視（採点後の「次へ」用）
+document.addEventListener('keydown', function(e) {
+  if(e.key==='Enter' && answered) {
+    e.preventDefault();
+    nextQuestion();
+  }
+});
+
+function handleInput(e) {
+  // 入力がある状態でEnterを待つ（リアルタイム判定はしない）
+}
+
+function checkAnswer() {
+  if(answered) return;
+  const userAns = String(npValue).trim();
+  if(!userAns || userAns==='-') return;
+
+  const prob    = currentProblems[currentIndex];
+  const elapsed = (Date.now()-problemStartTime)/1000;
+  const correct = userAns === prob.answer;
+
+  answered = true;
+  results.push({ prob:prob.display, answer:prob.answer, userAnswer:userAns, correct, time:elapsed });
+
+  const hint = document.getElementById('answerHint');
+  const disp = document.getElementById('npDisplay');
+  if(correct) {
+    if(disp) { disp.classList.remove('active'); disp.classList.add('correct'); }
+    hint.textContent='✓ 正解！'; hint.className='answer-hint correct-msg';
+    document.getElementById('questionCard').classList.add('flash-correct');
+    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-correct'),500);
+  } else {
+    if(disp) { disp.classList.remove('active'); disp.classList.add('incorrect'); }
+    const showAns = selectedMode==='practice' ? ` 　正解: ${prob.answer}` : '';
+    hint.textContent=`✗ 不正解${showAns}`; hint.className='answer-hint incorrect-msg';
+    document.getElementById('questionCard').classList.add('flash-incorrect');
+    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-incorrect'),500);
+  }
+  document.getElementById('npSubmit').disabled = true;
+  const snapIndex2 = currentIndex;
+  const delay = correct ? 650 : (selectedMode==='practice' ? 1200 : 650);
+  setTimeout(()=>{ if(answered && currentIndex===snapIndex2) nextQuestion(); }, delay);
+}
+
+function skipQuestion() {
+  if(answered) return;
+  const prob    = currentProblems[currentIndex];
+  const elapsed = (Date.now()-problemStartTime)/1000;
+  results.push({
+    prob:      prob.display,
+    answer:    prob.answer,
+    userAnswer:'',
+    correct:   false,
+    time:      elapsed,
+    skipped:   true
+  });
+  answered = true;
+
+  const hint = document.getElementById('answerHint');
+  hint.textContent = `→ スキップ　正解: ${prob.answer}`;
+  hint.className = 'answer-hint incorrect-msg';
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('nextBtn').disabled = false;
+}
+
+function nextQuestion() {
+  if(!answered) return; // 未採点なら何もしない
+  if(currentIndex >= currentProblems.length) return;
+  currentIndex++;
+  if(currentIndex >= currentProblems.length) {
+    finishQuiz(false);
+  } else {
+    showQuestion();
+  }
+}
+
+function abortQuiz() {
+  if(!confirm('中断しますか？')) return;
+  clearInterval(sessionTimer);
+  showScreen('screenSelect');
+}
+
+// ════════════════════════════════════════════════════════
+// 結果
+// ════════════════════════════════════════════════════════
+function finishQuiz(timeUp=false) {
+  clearInterval(sessionTimer);
+  const lv = lastLevel;
+  const correct = results.filter(r=>r.correct).length;
+  const total   = currentProblems.length;
+  const answered2 = results.length;
+  const rate    = correct/total;
+  const passed  = rate >= lv.passRate && !timeUp;
+  const avgTime = results.length ? (results.reduce((s,r)=>s+r.time,0)/results.length).toFixed(1) : '-';
+  const mins    = Math.floor(totalTime/60);
+  const secs    = totalTime%60;
+
+  // セッションを履歴に保存
+  const session = {
+    level:    lv.label,
+    title:    lv.title,
+    color:    lv.color,
+    mode:     lastMode==='practice'?'練習':'検定',
+    correct, total, rate, passed, avgTime,
+    totalTime: `${mins}:${secs<10?'0':''}${secs}`,
+    date:     new Date().toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    details:  [...results],
+  };
+  sessionHistory.unshift(session);
+
+  // 結果ヘッダー
+  const hdr = document.getElementById('resultHeader');
+  hdr.innerHTML = `
+    <div style="flex:1">
+      <div style="font-size:11px;opacity:0.7;margin-bottom:4px;">${lv.label}　${lastMode==='practice'?'練習':'検定'}モード</div>
+      <div style="display:flex;align-items:baseline;gap:4px;">
+        <span class="big-score">${correct}</span>
+        <span class="score-denom">/ ${total}</span>
+      </div>
+      <div style="margin-top:6px;">
+        <span class="${passed?'passed':'failed'}">${passed?'🎉 合格':'→ もう少し'}</span>
+      </div>
+    </div>
+    <div class="score-info">
+      <div>経過時間 ${mins}分${secs}秒</div>
+      <div style="margin-top:2px;">正答率 ${Math.round(rate*100)}%</div>
+      ${timeUp?'<div style="color:#FAC775;margin-top:2px;">⏰ 時間切れ</div>':''}
+    </div>
+  `;
+  hdr.style.background = passed ? '#1A3A5C' : '#AA3322';
+
+  // 統計
+  document.getElementById('statRow').innerHTML = `
+    <div class="stat-item">
+      <div class="sv" style="color:var(--teal)">${correct}</div>
+      <div class="sl">正解</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv" style="color:var(--coral)">${total-correct}</div>
+      <div class="sl">不正解・スキップ</div>
+    </div>
+    <div class="stat-item">
+      <div class="sv">${avgTime}秒</div>
+      <div class="sl">平均タイム/問</div>
+    </div>
+  `;
+
+  // 詳細リスト
+  document.getElementById('detailList').innerHTML = results.map((r,i)=>`
+    <div class="detail-item">
+      <div class="di-num">${i+1}</div>
+      <div class="di-prob">${r.prob} ＝</div>
+      <div class="di-ans">${r.userAnswer||'　'}</div>
+      ${r.correct?'':`<div class="di-wrong-ans">(${r.answer})</div>`}
+      <div class="di-mark ${r.correct?'ok':r.skipped?'skip':'ng'}">
+        ${r.correct?'○':r.skipped?'－':'✗'}
+      </div>
+    </div>
+  `).join('');
+
+  showScreen('screenResult');
+  renderHistorySection();
+}
+
+function retryQuiz() {
+  showScreen('screenSelect');
+  if(lastLevel) selectLevel(lastLevel.key);
+  if(lastMode)  selectMode(lastMode);
+}
+
+// ════════════════════════════════════════════════════════
+// 履歴表示
+// ════════════════════════════════════════════════════════
+function renderHistorySection() {
+  const sec = document.getElementById('historySection');
+  if(sessionHistory.length===0) {
+    sec.innerHTML='';
+    return;
+  }
+  const recent = sessionHistory.slice(0,5);
+  sec.innerHTML = `
+    <p style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px;">📋 直近の結果</p>
+    ${recent.map(s=>`
+      <div class="history-item">
+        <div class="hi-badge" style="background:${s.color}">${s.level}</div>
+        <div class="hi-info">
+          <div class="hi-score">${s.correct} / ${s.total}問　${Math.round(s.rate*100)}%</div>
+          <div class="hi-meta">${s.mode} ／ ${s.totalTime} ／ ${s.date}</div>
+        </div>
+        <div class="hi-result ${s.passed?'pass':'fail'}">${s.passed?'合格':'再挑戦'}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ════════════════════════════════════════════════════════
+// 画面切り替え
+// ════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// 起動
+init();
+</script>
+</body>
+</html>
