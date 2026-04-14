@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>計算力育成プログラム</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,6 +26,7 @@
     background: var(--pale);
     color: var(--ink);
     min-height: 100vh;
+    touch-action: manipulation;
   }
 
   /* ── ヘッダー ── */
@@ -66,12 +67,21 @@
     color: var(--mist);
     margin-bottom: 20px;
   }
+  /* メイングリッド: 3列ベース */
   .level-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
     margin-bottom: 20px;
   }
+  /* サブグリッド（グループごとに列数を変える） */
+  .sub-grid {
+    display: grid;
+    gap: 8px;
+  }
+  .sub-grid-1 { grid-template-columns: 1fr; }
+  .sub-grid-2 { grid-template-columns: 1fr 1fr; }
+  .sub-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
   .level-card {
     background: white;
     border-radius: var(--radius);
@@ -657,8 +667,9 @@
         <div class="numpad-display active" id="npDisplay">？</div>
       </div>
       <div id="numpadTwoBox" style="display:none;">
-        <div class="numpad-label">テンキー入力</div>
-        <div class="numpad-two-row">
+        <div class="numpad-label" id="npBoxTitle">テンキー入力</div>
+        <!-- 2ボックス（two / sqrt） -->
+        <div class="numpad-two-row" id="npRow2">
           <div class="nd-wrap">
             <div class="numpad-label" id="npLabel1">1つ目</div>
             <div class="numpad-display active" id="npDisplay1">？</div>
@@ -667,6 +678,39 @@
           <div class="nd-wrap">
             <div class="numpad-label" id="npLabel2">2つ目</div>
             <div class="numpad-display" id="npDisplay2">？</div>
+          </div>
+        </div>
+        <!-- 真分数（frac）: 分子/分母 -->
+        <div id="npRowFrac" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+            <div class="nd-wrap" style="max-width:110px;">
+              <div class="numpad-label">分子</div>
+              <div class="numpad-display active" id="npFracNum">？</div>
+            </div>
+            <div class="nd-sep" style="font-size:26px;font-weight:900;color:var(--navy);">／</div>
+            <div class="nd-wrap" style="max-width:110px;">
+              <div class="numpad-label">分母</div>
+              <div class="numpad-display" id="npFracDen">？</div>
+            </div>
+          </div>
+        </div>
+        <!-- 帯分数（fracMixed）: 整数 と 分子/分母 -->
+        <div id="npRowFracMixed" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:nowrap;">
+            <div class="nd-wrap" style="max-width:80px;">
+              <div class="numpad-label">整数</div>
+              <div class="numpad-display active" id="npMixInt">？</div>
+            </div>
+            <div class="nd-sep" style="font-size:13px;">と</div>
+            <div class="nd-wrap" style="max-width:80px;">
+              <div class="numpad-label">分子</div>
+              <div class="numpad-display" id="npMixNum">？</div>
+            </div>
+            <div class="nd-sep" style="font-size:22px;font-weight:900;color:var(--navy);">／</div>
+            <div class="nd-wrap" style="max-width:80px;">
+              <div class="numpad-label">分母</div>
+              <div class="numpad-display" id="npMixDen">？</div>
+            </div>
           </div>
         </div>
       </div>
@@ -716,95 +760,141 @@
 // 定数・設定
 // ════════════════════════════════════════════════════════
 const LEVELS = [
-  {
-    key:"10kyu", label:"10級", color:"#0F6E56",
-    title:"10の補数", desc:"20問・3分",
-    timeLimit:180, nQ:20, passRate:0.90,
-    gen: ()=>genComplement10()
-  },
-  {
-    key:"9kyu", label:"9級", color:"#0F6E56",
-    title:"たし算（1桁）", desc:"20問・2分",
-    timeLimit:120, nQ:20, passRate:0.88,
-    gen: ()=>genAdd1digit()
-  },
-  {
-    key:"8kyu", label:"8級", color:"#1A9A78",
-    title:"100の補数", desc:"20問・3分",
-    timeLimit:180, nQ:20, passRate:0.88,
-    gen: ()=>genComplement100()
-  },
-  {
-    key:"7kyu", label:"7級", color:"#1A9A78",
-    title:"引き算（2桁）", desc:"20問・2分30秒",
-    timeLimit:150, nQ:20, passRate:0.88,
-    gen: ()=>genSub2digit()
-  },
-  {
-    key:"6kyu", label:"6級", color:"#3B8C2A",
-    title:"九九（2〜5の段）", desc:"20問・2分30秒",
-    timeLimit:150, nQ:20, passRate:1.0,
-    gen: ()=>genKuku25()
-  },
-  {
-    key:"5kyu", label:"5級", color:"#3B8C2A",
-    title:"九九（全段）", desc:"20問・1分30秒",
-    timeLimit:90, nQ:20, passRate:1.0,
-    gen: ()=>genKukuAll()
-  },
-  {
-    key:"4kyu1", label:"4級①", color:"#C8820A",
-    title:"3桁のたし算", desc:"12問・2分",
-    timeLimit:120, nQ:12, passRate:0.88,
-    gen: ()=>gen3digitAdd()
-  },
-  {
-    key:"4kyu2", label:"4級②", color:"#C8820A",
-    title:"3桁の引き算", desc:"12問・2分",
-    timeLimit:120, nQ:12, passRate:0.88,
-    gen: ()=>gen3digitSub()
-  },
-  {
-    key:"3kyu1", label:"3級①", color:"#3B8C2A",
-    title:"2桁×1桁", desc:"12問・2分30秒",
-    timeLimit:150, nQ:12, passRate:0.88,
-    gen: ()=>gen2x1()
-  },
-  {
-    key:"sandan_e", label:"三段E", color:"#AA3322",
-    title:"和と積 → 2数を求める", desc:"20問・3分",
-    timeLimit:180, nQ:20, passRate:0.85,
-    inputType:"two",
-    gen: ()=>genSumProduct()
-  },
-  {
-    key:"yondan_a", label:"四段A", color:"#D85A30",
-    title:"ルート変形  √n → a√b", desc:"20問・2分",
-    timeLimit:120, nQ:20, passRate:0.85,
-    inputType:"sqrt",
-    inputLabels:["係数","√の中"],
-    gen: ()=>genSqrtTransform()
-  },
-  {
-    key:"yondan_b", label:"四段B", color:"#D85A30",
-    title:"ルートのかけ算  √a×√b", desc:"20問・2分",
-    timeLimit:120, nQ:20, passRate:0.85,
-    inputType:"sqrt",
-    inputLabels:["係数","√の中"],
-    gen: ()=>genSqrtMult()
-  },
-  {
-    key:"seifuku2", label:"正負①", color:"#3C3489",
-    title:"正負の数 2項の和", desc:"20問・2分",
-    timeLimit:120, nQ:20, passRate:0.88,
-    gen: ()=>genSignedSum2()
-  },
-  {
-    key:"seifuku3", label:"正負②", color:"#3C3489",
-    title:"正負の数 3項の和", desc:"20問・3分",
-    timeLimit:180, nQ:20, passRate:0.85,
-    gen: ()=>genSignedSum3()
-  },
+  // ── 10〜8級: 1列 ──────────────────────────────────────
+  { key:"10kyu",  label:"10級",  color:"#0F6E56", group:"10-8",
+    title:"10の補数", desc:"20問・3分", timeLimit:180, nQ:20, passRate:0.90,
+    gen:()=>genComplement10() },
+  { key:"9kyu",   label:"9級",   color:"#0F6E56", group:"10-8",
+    title:"1桁たし算", desc:"20問・2分", timeLimit:120, nQ:20, passRate:0.88,
+    gen:()=>genAdd1digit() },
+  { key:"8kyu",   label:"8級",   color:"#0F6E56", group:"10-8",
+    title:"100の補数", desc:"20問・3分", timeLimit:180, nQ:20, passRate:0.88,
+    gen:()=>genComplement100() },
+
+  // ── 7〜4級: 2列 ──────────────────────────────────────
+  { key:"7kyuA",  label:"7級A",  color:"#1A9A78", group:"7-4",
+    title:"2桁引き算", desc:"20問・2分30秒", timeLimit:150, nQ:20, passRate:0.88,
+    gen:()=>genSub2digit() },
+  { key:"7kyuB",  label:"7級B",  color:"#1A9A78", group:"7-4",
+    title:"九九（2〜5段）", desc:"20問・2分30秒", timeLimit:150, nQ:20, passRate:1.0,
+    gen:()=>genKuku25() },
+  { key:"6kyuA",  label:"6級A",  color:"#1A9A78", group:"7-4",
+    title:"九九（全段）", desc:"20問・1分30秒", timeLimit:90, nQ:20, passRate:1.0,
+    gen:()=>genKukuAll() },
+  { key:"6kyuB",  label:"6級B",  color:"#1A9A78", group:"7-4",
+    title:"3桁たし算", desc:"12問・2分", timeLimit:120, nQ:12, passRate:0.88,
+    gen:()=>gen3digitAdd() },
+  { key:"5kyuA",  label:"5級A",  color:"#3B8C2A", group:"7-4",
+    title:"3桁引き算", desc:"12問・2分", timeLimit:120, nQ:12, passRate:0.88,
+    gen:()=>gen3digitSub() },
+  { key:"5kyuB",  label:"5級B",  color:"#3B8C2A", group:"7-4",
+    title:"3桁MIX", desc:"12問・2分30秒", timeLimit:150, nQ:12, passRate:0.88,
+    gen:()=>gen3digitMix() },
+  { key:"4kyuA",  label:"4級A",  color:"#3B8C2A", group:"7-4",
+    title:"2桁×1桁", desc:"12問・2分30秒", timeLimit:150, nQ:12, passRate:0.88,
+    gen:()=>gen2x1() },
+  { key:"4kyuB",  label:"4級B",  color:"#3B8C2A", group:"7-4",
+    title:"×5・÷5", desc:"12問・2分", timeLimit:120, nQ:12, passRate:0.88,
+    gen:()=>genTimes5() },
+
+  // ── 3〜1級: 3列 ──────────────────────────────────────
+  { key:"3kyuA",  label:"3級A",  color:"#C8820A", group:"3-1",
+    title:"35型かけ算", desc:"12問・2分30秒", timeLimit:150, nQ:12, passRate:0.88,
+    gen:()=>genType35() },
+  { key:"3kyuB",  label:"3級B",  color:"#C8820A", group:"3-1",
+    title:"×25・99型", desc:"12問・2分30秒", timeLimit:150, nQ:12, passRate:0.88,
+    gen:()=>genTimes25and99() },
+  { key:"3kyuC",  label:"3級C",  color:"#C8820A", group:"3-1",
+    title:"素因数分解", desc:"12問・2分", timeLimit:120, nQ:12, passRate:0.85,
+    gen:()=>genPrimeFactorize() },
+  { key:"3kyuD",  label:"3級D",  color:"#C8820A", group:"3-1",
+    title:"和と積 → 2数", desc:"20問・3分", timeLimit:180, nQ:20, passRate:0.85,
+    inputType:"two", gen:()=>genSumProduct() },
+  { key:"3kyuE",  label:"3級E",  color:"#C8820A", group:"3-1",
+    title:"かけ算MIX", desc:"12問・3分", timeLimit:180, nQ:12, passRate:0.85,
+    gen:()=>genKakesMix() },
+  { key:"3kyuF",  label:"3級F",  color:"#C8820A", group:"3-1",
+    title:"　", desc:"（準備中）", timeLimit:180, nQ:12, passRate:0.85,
+    disabled:true, gen:()=>[] },
+  { key:"2kyuA",  label:"2級A",  color:"#0C447C", group:"3-1",
+    title:"分数たし引き①", desc:"同分母真分数・10問・2分", timeLimit:120, nQ:10, passRate:0.88,
+    inputType:"frac", gen:()=>gen2kyu1() },
+  { key:"2kyuB",  label:"2級B",  color:"#0C447C", group:"3-1",
+    title:"分数たし引き②", desc:"同分母帯分数・10問・2分30秒", timeLimit:150, nQ:10, passRate:0.85,
+    inputType:"fracMixed", gen:()=>gen2kyu2() },
+  { key:"2kyuC",  label:"2級C",  color:"#0C447C", group:"3-1",
+    title:"分数たし引き③", desc:"通分・10問・3分", timeLimit:180, nQ:10, passRate:0.85,
+    inputType:"frac", gen:()=>gen2kyu3() },
+  { key:"2kyuD",  label:"2級D",  color:"#0C447C", group:"3-1",
+    title:"分数たし引き④", desc:"異分母帯分数・10問・3分", timeLimit:180, nQ:10, passRate:0.85,
+    inputType:"fracMixed", gen:()=>gen2kyu4() },
+  { key:"1kyuA",  label:"1級A",  color:"#3C3489", group:"3-1",
+    title:"約分", desc:"10問・2分", timeLimit:120, nQ:10, passRate:0.88,
+    inputType:"frac", gen:()=>gen1kyu1() },
+  { key:"1kyuB",  label:"1級B",  color:"#3C3489", group:"3-1",
+    title:"分数かけ算①", desc:"約分1回・10問・2分30秒", timeLimit:150, nQ:10, passRate:0.85,
+    inputType:"frac", gen:()=>gen1kyu2() },
+  { key:"1kyuC",  label:"1級C",  color:"#3C3489", group:"3-1",
+    title:"分数かけ算②", desc:"約分2〜3回・10問・3分", timeLimit:180, nQ:10, passRate:0.85,
+    inputType:"frac", gen:()=>gen1kyu3() },
+  { key:"1kyuD",  label:"1級D",  color:"#3C3489", group:"3-1",
+    title:"分数かけ算③", desc:"3分数・10問・3分", timeLimit:180, nQ:10, passRate:0.85,
+    inputType:"frac", gen:()=>gen1kyu4() },
+
+  // ── エキシビジョン区間 ────────────────────────────────
+  { key:"seifukuA", label:"正負A", color:"#8B6914", group:"exhibition",
+    title:"正負の数 2項の和", desc:"20問・2分", timeLimit:120, nQ:20, passRate:0.88,
+    gen:()=>genSignedSum2() },
+  { key:"seifukuB", label:"正負B", color:"#8B6914", group:"exhibition",
+    title:"正負の数 3項の和", desc:"20問・3分", timeLimit:180, nQ:20, passRate:0.85,
+    gen:()=>genSignedSum3() },
+
+  // ── 段位: 3列 ────────────────────────────────────────
+  { key:"shodan_a", label:"初段A", color:"#633806", group:"dan",
+    title:"一次方程式（整数）", desc:"10問・3分", timeLimit:180, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genLinearEq() },
+  { key:"shodan_b", label:"初段B", color:"#633806", group:"dan",
+    title:"一次方程式（分数・比例）", desc:"10問・3分", timeLimit:180, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genProportion() },
+  { key:"nidan_a",  label:"二段A", color:"#633806", group:"dan",
+    title:"連立方程式（加減）", desc:"8問・4分", timeLimit:240, nQ:8, passRate:0.80,
+    inputType:"eq2", gen:()=>genSimultaneous() },
+  { key:"nidan_b",  label:"二段B", color:"#633806", group:"dan",
+    title:"連立方程式（代入）", desc:"8問・4分", timeLimit:240, nQ:8, passRate:0.80,
+    inputType:"eq2", gen:()=>genSimultaneousSub() },
+  { key:"sandan_a", label:"三段A", color:"#712B13", group:"dan",
+    title:"展開①(x+a)²", desc:"10問・2分", timeLimit:120, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genSqPlus() },
+  { key:"sandan_b", label:"三段B", color:"#712B13", group:"dan",
+    title:"展開②(x+a)(x+b)", desc:"10問・3分", timeLimit:180, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genProduct() },
+  { key:"sandan_c", label:"三段C", color:"#712B13", group:"dan",
+    title:"展開③(x+a)(x-a)", desc:"10問・2分", timeLimit:120, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genDiffSq() },
+  { key:"sandan_d", label:"三段D", color:"#712B13", group:"dan",
+    title:"展開MIX", desc:"10問・3分", timeLimit:180, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genExpandMix() },
+  { key:"sandan_e2",label:"三段E", color:"#712B13", group:"dan",
+    title:"因数分解", desc:"10問・4分", timeLimit:240, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genFactorize() },
+  { key:"yondan_a2",label:"四段A", color:"#D85A30", group:"dan",
+    title:"ルート①変形", desc:"10問・2分", timeLimit:120, nQ:10, passRate:0.80,
+    inputType:"sqrt", inputLabels:["係数","√の中"], gen:()=>genSqrtTransform() },
+  { key:"yondan_b2",label:"四段B", color:"#D85A30", group:"dan",
+    title:"ルート②かけ算", desc:"10問・2分", timeLimit:120, nQ:10, passRate:0.80,
+    inputType:"sqrt", inputLabels:["係数","√の中"], gen:()=>genSqrtMult() },
+  { key:"yondan_c", label:"四段C", color:"#D85A30", group:"dan",
+    title:"ルート③わり算", desc:"10問・2分", timeLimit:120, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genSqrtDiv() },
+  { key:"yondan_d", label:"四段D", color:"#D85A30", group:"dan",
+    title:"ルート④()の2乗", desc:"10問・3分", timeLimit:180, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genSqrtSq() },
+  { key:"godan",    label:"五段",  color:"#D85A30", group:"dan",
+    title:"ルート混合", desc:"10問・4分", timeLimit:240, nQ:10, passRate:0.80,
+    inputType:"eq", gen:()=>genSqrtAdvanced() },
+  { key:"meijin",   label:"名人",  color:"#1A3A5C", group:"dan",
+    title:"一次関数", desc:"8問・5分", timeLimit:300, nQ:8, passRate:0.80,
+    inputType:"eq", gen:()=>genLinearFunc() },
 ];
 
 // ════════════════════════════════════════════════════════
@@ -964,9 +1054,419 @@ function genSumProduct() {
   return all.slice(0,20);
 }
 
+
+// √n → {coef, rad} (a√b の形)
+function simplifySqrt(n) {
+  let coef=1, rad=n;
+  for(let i=2; i*i<=rad; i++) {
+    while(rad%(i*i)===0) { coef*=i; rad=Math.floor(rad/(i*i)); }
+  }
+  return {coef, rad};
+}
+
 // ════════════════════════════════════════════════════════
-// 四段A: ルート変形  √n → a√b
+// 新規追加: 問題生成関数
 // ════════════════════════════════════════════════════════
+
+// 3桁MIX（たし算・引き算混合）
+function gen3digitMix() {
+  const add = gen3digitAdd();
+  const sub = gen3digitSub();
+  return shuffle([...add,...sub]).slice(0,12);
+}
+
+// ×5・÷5
+function genTimes5() {
+  const pool=[];
+  for(let a=12;a<=99;a+=1) {
+    if(a%10!==0) pool.push(makeProblem(`${a} × 5`, a*5));
+    if(a%2===0 && a%10!==0) pool.push(makeProblem(`${a} ÷ 2`, a/2));
+  }
+  return shuffle(pool).slice(0,12);
+}
+
+// 35型: (30+a)(30+b)など十の位が同じで一の位の和が10
+function genType35() {
+  const pool=[];
+  // n×n 型: 25×25, 35×35, 45×45, 55×55, 65×65, 75×75, 85×85, 95×95
+  for(let t=2;t<=9;t++) {
+    const a=t*10+5;
+    pool.push(makeProblem(`${a} × ${a}`, a*a));
+  }
+  // 和が10になる組み合わせ: 31×39, 42×48, etc
+  for(let tens=2;tens<=9;tens++) {
+    for(let d=1;d<=4;d++) {
+      const a=tens*10+d; const b=tens*10+(10-d);
+      pool.push(makeProblem(`${a} × ${b}`, a*b));
+    }
+  }
+  return shuffle(pool).slice(0,12);
+}
+
+// ×25・99型
+function genTimes25and99() {
+  const pool=[];
+  // ×25: 4の倍数×25
+  for(let a=4;a<=96;a+=4)
+    pool.push(makeProblem(`${a} × 25`, a*25));
+  // 99型: a×99 = a×100 - a
+  for(let a=12;a<=99;a++)
+    pool.push(makeProblem(`${a} × 99`, a*99));
+  return shuffle(pool).slice(0,12);
+}
+
+// 素因数分解（プリントから移植）
+function genPrimeFactorize() {
+  function factorize(n) {
+    const f=[]; let d=2;
+    while(d*d<=n){ while(n%d===0){f.push(d);n/=d;} d++; }
+    if(n>1) f.push(n); return f;
+  }
+  const easy  = [];
+  const mid   = [];
+  const hard  = [];
+  for(let n=4;n<=100;n++){
+    const f=factorize(n);
+    if(f.length===2 && Math.max(...f)<=11) easy.push([n,f]);
+    else if(f.length===3 && Math.max(...f)<=11) mid.push([n,f]);
+    else if(f.length===4 && Math.max(...f)<=7)  hard.push([n,f]);
+  }
+  const probs=[];
+  shuffle(easy).slice(0,4).forEach(([n,f])=>probs.push(makeProblem(`${n}`, f.join(' × '))));
+  shuffle(mid) .slice(0,5).forEach(([n,f])=>probs.push(makeProblem(`${n}`, f.join(' × '))));
+  shuffle(hard).slice(0,3).forEach(([n,f])=>probs.push(makeProblem(`${n}`, f.join(' × '))));
+  return shuffle(probs).slice(0,12);
+}
+
+// かけ算MIX（2桁×1桁・×5・35型・×25・99型の混合）
+function genKakesMix() {
+  const p1 = gen2x1().slice(0,3);
+  const p2 = genTimes5().slice(0,3);
+  const p3 = genType35().slice(0,2);
+  const p4 = genTimes25and99().slice(0,2);
+  return shuffle([...p1,...p2,...p3,...p4]).slice(0,12);
+}
+
+// ── 分数生成（プリント相当・シンプル版）─────────────────
+function fracStr(n, d) {
+  if(n===0) return "0";
+  if(d===1) return String(n);
+  if(n<0||n>d) {
+    const w=Math.floor(n/d); const r=n%d;
+    if(r===0) return String(w);
+    return `${w}と${r}/${d}`;
+  }
+  return `${n}/${d}`;
+}
+
+// 2級A: 同分母真分数 (繰り上がりあり・約分なし)
+function gen2kyu1() {
+  const denoms=[5,6,7,8,9]; const probs=[];
+  denoms.forEach(d=>{
+    for(let t=0;t<4;t++){
+      let n1=rnd(1,d-1);
+      let lo=Math.max(1,d-n1+1); let hi=d-1;
+      if(lo>hi) lo=hi;
+      let n2=rnd(lo,hi);
+      const s=n1+n2; const ans=fracStr(s,d);
+      probs.push({display:`${n1}/${d}　＋　${n2}/${d}`, answer:ans});
+    }
+    for(let t=0;t<2;t++){
+      let n1=rnd(2,d-1); let n2=rnd(1,n1-1);
+      probs.push({display:`${n1}/${d}　−　${n2}/${d}`, answer:fracStr(n1-n2,d)});
+    }
+  });
+  return shuffle(probs).slice(0,10);
+}
+
+// 2級B: 同分母帯分数（約分なし）
+function gen2kyu2() {
+  const denoms=[5,6,7,8,9]; const probs=[];
+  denoms.forEach(d=>{
+    for(let t=0;t<4;t++){
+      const op=Math.random()>0.5?'＋':'−';
+      const i1=rnd(1,3); const i2=rnd(1,2);
+      const n1=rnd(1,d-1); const n2=rnd(1,d-1);
+      let ans;
+      if(op==='＋'){
+        const tot=(i1+i2)*d+n1+n2;
+        const w=Math.floor(tot/d); const r=tot%d;
+        ans=r===0?String(w):`${w}と${r}/${d}`;
+      } else {
+        let t1=i1*d+n1; let t2=i2*d+n2;
+        if(t1<t2){[t1,t2]=[t2,t1];}
+        const diff=t1-t2; const w=Math.floor(diff/d); const r=diff%d;
+        ans=r===0?String(w):w>0?`${w}と${r}/${d}`:`${r}/${d}`;
+      }
+      probs.push({display:`${i1}と${n1}/${d}　${op}　${i2}と${n2}/${d}`, answer:ans});
+    }
+  });
+  return shuffle(probs).slice(0,10);
+}
+
+// 2級C: 通分（分母2〜9の組み合わせ）
+function gen2kyu3() {
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  function lcm(a,b){return a*b/gcd(a,b);}
+  const pairs=[[2,3],[2,5],[3,4],[3,5],[4,6],[2,7],[3,7],[4,5],[2,9],[3,8]];
+  const probs=[];
+  pairs.forEach(([d1,d2])=>{
+    const l=lcm(d1,d2);
+    const n1=rnd(1,d1-1); const n2=rnd(1,d2-1);
+    const s=n1*l/d1+n2*l/d2;
+    const g=gcd(s,l); const rn=s/g; const rd=l/g;
+    const ans=rd===1?String(rn):rn>rd?fracStr(rn,rd):`${rn}/${rd}`;
+    probs.push({display:`${n1}/${d1}　＋　${n2}/${d2}`, answer:ans});
+    const d=n1*l/d1-n2*l/d2;
+    if(d>0){const g2=gcd(d,l); probs.push({display:`${n1}/${d1}　−　${n2}/${d2}`, answer:`${d/g2}/${l/g2}`});}
+  });
+  return shuffle(probs).slice(0,10);
+}
+
+// 2級D: 異分母帯分数
+function gen2kyu4() {
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  function lcm(a,b){return a*b/gcd(a,b);}
+  const pairs=[[2,3],[3,4],[2,5],[4,6],[3,5]];
+  const probs=[];
+  pairs.forEach(([d1,d2])=>{
+    const l=lcm(d1,d2);
+    for(let t=0;t<4;t++){
+      const i1=rnd(1,3); const i2=rnd(1,2);
+      const n1=rnd(1,d1-1); const n2=rnd(1,d2-1);
+      const tot1=i1*d1+n1; const tot2=i2*d2+n2;
+      const tot=tot1*l/d1+tot2*l/d2;
+      const w=Math.floor(tot/l); const r=tot%l;
+      const g=gcd(r,l);
+      const ans=r===0?String(w):`${w}と${r/g}/${l/g}`;
+      probs.push({display:`${i1}と${n1}/${d1}　＋　${i2}と${n2}/${d2}`, answer:ans});
+    }
+  });
+  return shuffle(probs).slice(0,10);
+}
+
+// 1級A: 約分
+function gen1kyu1() {
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  const probs=[];
+  const pairs=[[4,6],[6,9],[4,8],[6,8],[9,12],[8,12],[6,10],[4,10],[9,15],[8,10],
+               [6,15],[12,16],[10,15],[9,21],[8,20],[15,20],[12,18],[10,25],[14,21],[16,20]];
+  pairs.forEach(([n,d])=>{
+    const g=gcd(n,d);
+    probs.push({display:`${n}/${d}`, answer:`${n/g}/${d/g}`});
+  });
+  return shuffle(probs).slice(0,10);
+}
+
+// 1級B: 分数かけ算（約分1回）
+function gen1kyu2() {
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  const pool=[];
+  const ds=[2,3,4,5,6,7,8,9];
+  for(const d1 of ds) for(const n2 of ds) {
+    const g=gcd(d1,n2);
+    if(g>1){
+      const n1=rnd(1,d1-1); const d2=rnd(2,9);
+      const rn=(n1*(n2/g))%(d1/g)===0?(n1*(n2/g))/(d1/g):null;
+      if(!rn) pool.push({
+        n1,d1,n2,d2,
+        display:`${n1}/${d1} × ${n2}/${d2}`,
+        answer:(()=>{const g2=gcd(n1*n2,d1*d2);const rn2=n1*n2/g2;const rd=d1*d2/g2;return rd===1?String(rn2):`${rn2}/${rd}`;})()
+      });
+    }
+  }
+  return shuffle(pool).slice(0,10).map(p=>({display:p.display,answer:p.answer}));
+}
+
+// 1級C: 分数かけ算（約分2〜3回）
+function gen1kyu3() {
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  const pool=[];
+  for(let n1=2;n1<=9;n1++) for(let d1=2;d1<=9;d1++) for(let n2=2;n2<=9;n2++) for(let d2=2;d2<=9;d2++){
+    if(n1>=d1||n2>=d2) continue;
+    const g12=gcd(n1,d2); const g21=gcd(n2,d1);
+    if(g12>1&&g21>1){
+      const rn=n1*n2/g12/g21; const rd=d1*d2/g12/g21;
+      const g=gcd(rn,rd);
+      pool.push({display:`${n1}/${d1} × ${n2}/${d2}`, answer:g===rd?String(rn/g):`${rn/g}/${rd/g}`});
+    }
+  }
+  return shuffle(pool).slice(0,10);
+}
+
+// 1級D: 3分数かけ算
+function gen1kyu4() {
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  const pool=[];
+  for(let t=0;t<200;t++){
+    const d1=rnd(2,6); const n1=rnd(1,d1-1);
+    const d2=rnd(2,6); const n2=rnd(1,d2-1);
+    const d3=rnd(2,6); const n3=rnd(1,d3-1);
+    const rn=n1*n2*n3; const rd=d1*d2*d3;
+    const g=gcd(rn,rd);
+    pool.push({display:`${n1}/${d1} × ${n2}/${d2} × ${n3}/${d3}`, answer:g===rd?String(rn/g):`${rn/g}/${rd/g}`});
+  }
+  return shuffle(pool).slice(0,10);
+}
+
+// ── 中学段位: 問題生成（gen_dan からの移植）──────────────
+
+function genLinearEq() {
+  const probs=[];
+  for(let t=0;t<30;t++){
+    const x=rnd(-9,9); if(x===0) continue;
+    const a=rnd(2,9); const c=rnd(1,7); if(a===c) continue;
+    const d=rnd(-15,15); const b=(c-a)*x+d;
+    const lhs=`${a}x${b>=0?'+'+b:b}`; const rhs=c===0?String(d):`${c}x${d>=0?'+'+d:d}`;
+    probs.push(makeProblem(lhs+'='+rhs, 'x='+x));
+  }
+  return shuffle(probs).slice(0,10);
+}
+
+function genProportion() {
+  const pool=[[2,3],[3,4],[2,5],[3,5],[4,5],[3,7],[5,6],[2,7]];
+  const probs=[];
+  pool.forEach(([a,b])=>{
+    const k=rnd(2,8); const c=a*k; const x=b*k;
+    probs.push(makeProblem(`${a}:${b}=${c}:x`, 'x='+x));
+  });
+  return shuffle(probs).slice(0,10);
+}
+
+function genSimultaneous() {
+  const probs=[];
+  for(let t=0;t<50;t++){
+    const x=rnd(-6,6); const y=rnd(-6,6);
+    if(x===0||y===0) continue;
+    const a1=rnd(2,5); let b1=rnd(2,5); if(a1===b1) b1++;
+    const a2=rnd(1,3); const b2=rnd(1,3);
+    const c1=a1*x+b1*y; const c2=a2*x+b2*y;
+    probs.push(makeProblem(
+      `${a1}x+${b1}y=${c1} / ${a2}x+${b2}y=${c2}`.replace(/\+-/g,'-'),
+      `x=${x},y=${y}`
+    ));
+    if(probs.length>=8) break;
+  }
+  return probs;
+}
+
+function genSimultaneousSub() {
+  const probs=[];
+  for(let t=0;t<50;t++){
+    const x=rnd(-5,5); if(x===0) continue;
+    const a=rnd(2,4); const b=rnd(-5,5);
+    const y=a*x+b; const c=rnd(2,5); const d=c*x+y;
+    probs.push(makeProblem(`y=${a}x${b>=0?'+'+b:b}, ${c}x+y=${d}`.replace(/\+-/g,'-'), `x=${x},y=${y}`));
+    if(probs.length>=8) break;
+  }
+  return probs;
+}
+
+function genSqPlus() {
+  return shuffle([1,2,3,4,5,6,7,8,9]).slice(0,10).map(a=>{
+    const lhs=`(x+${a})²`;
+    const ans=`x²+${2*a}x+${a*a}`;
+    return makeProblem(lhs, ans);
+  });
+}
+
+function genProduct() {
+  const probs=[];
+  for(let t=0;t<200;t++){
+    const a=rnd(-9,9); const b=rnd(-9,9);
+    if(a===0||b===0||a===b||a+b===0) continue;
+    const s=a+b; const p=a*b;
+    const fmt=n=>n>0?`+${n}`:String(n);
+    let ans=`x²${s!==0?(s===1?'+x':s===-1?'-x':fmt(s)+'x'):''}${p!==0?fmt(p):''}`;
+    const sa=a>0?`+${a}`:String(a); const sb=b>0?`+${b}`:String(b);
+    probs.push(makeProblem(`(x${sa})(x${sb})`, ans));
+    if(probs.length>=10) break;
+  }
+  return probs;
+}
+
+function genDiffSq() {
+  return shuffle([1,2,3,4,5,6,7,8,9]).slice(0,10).map(a=>
+    makeProblem(`(x+${a})(x-${a})`, `x²-${a*a}`)
+  );
+}
+
+function genExpandMix() {
+  const a_pool=shuffle([...Array(9)].map((_,i)=>i+1));
+  return a_pool.slice(0,10).map(a=>{
+    const t=rnd(0,2);
+    if(t===0) return makeProblem(`(x+${a})²`, `x²+${2*a}x+${a*a}`);
+    if(t===1) return makeProblem(`(x-${a})²`, `x²-${2*a}x+${a*a}`);
+    return makeProblem(`(x+${a})(x-${a})`, `x²-${a*a}`);
+  });
+}
+
+function genFactorize() {
+  const probs=[];
+  for(let t=0;t<200;t++){
+    const a=rnd(-8,8); const b=rnd(-8,8);
+    if(a===0||b===0) continue;
+    const s=a+b; const p=a*b;
+    const fmt=n=>n>0?`+${n}`:n<0?String(n):'';
+    const prob=`x²${fmt(s)}x${fmt(p)}`.replace(/\+-/g,'-');
+    const sa=a>0?`+${a}`:String(a); const sb=b>0?`+${b}`:String(b);
+    const ans=`(x${sa})(x${sb})`.replace(/\+-/g,'-');
+    probs.push(makeProblem(prob, ans));
+    if(probs.length>=10) break;
+  }
+  return probs;
+}
+
+function genSqrtDiv() {
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  const pairs=[];
+  for(let b=2;b<=13;b++){
+    const {coef,rad}=simplifySqrt(b);
+    if(coef>1) continue;
+    for(let k=2;k<=9;k++) pairs.push({a:k*b,b,ans:`${k}√${b}`});
+  }
+  return shuffle(pairs).slice(0,10).map(p=>makeProblem(`${p.a}/√${p.b}`, p.ans));
+}
+
+function genSqrtSq() {
+  const pool=[];
+  for(const a of [2,3,5,6,7,10,11,13,15]) for(const b of [1,2,3,4,5])
+    pool.push({lhs:`(√${a}+${b})²`, ans:`${a+b*b}+${2*b}√${a}`});
+  for(const a of [2,3,5,6,7,10,11,13,15]) for(const b of [1,2,3])
+    pool.push({lhs:`(√${a}-${b})²`, ans:`${a+b*b}-${2*b}√${a}`});
+  return shuffle(pool).slice(0,10).map(p=>makeProblem(p.lhs, p.ans));
+}
+
+function genSqrtAdvanced() {
+  const pool=[];
+  for(const a of [5,6,7,10,11,13,15]) for(const b of [1,2,3])
+    pool.push(makeProblem(`(√${a}+${b})(√${a}-${b})`, String(a-b*b)));
+  for(const a of [2,3,5]) for(const c of [3,5,7]){
+    if(a>=c) continue;
+    const {coef,rad}=simplifySqrt(a*c);
+    pool.push(makeProblem(`(√${a}+√${c})²`, `${a+c}+${2*coef}√${rad}`));
+  }
+  return shuffle(pool).slice(0,10);
+}
+
+function genLinearFunc() {
+  const probs=[];
+  for(let t=0;t<50;t++){
+    const a=rnd(-4,4); if(a===0) continue;
+    const b=rnd(-8,8);
+    const x1=rnd(-5,0); const x2=rnd(1,5);
+    const y1=a*x1+b; const y2=a*x2+b;
+    probs.push(makeProblem(
+      `2点(${x1},${y1})(${x2},${y2})を通る直線`,
+      `y=${a}x${b>0?'+'+b:b<0?b:''}`.replace(/\+-/g,'-').replace(/\+0$/,'')
+    ));
+    if(probs.length>=8) break;
+  }
+  return probs;
+}
+
+
+
 function simplifySqrt(n) {
   // √n を a√b に変換。返値: {coef:a, rad:b}
   let coef=1, rad=n;
@@ -994,6 +1494,7 @@ function genSqrtTransform() {
 // ════════════════════════════════════════════════════════
 // 四段B: ルートのかけ算  √a × √b = c√d
 // ════════════════════════════════════════════════════════
+
 function genSqrtMult() {
   function isPerfectSq(n){ const r=Math.round(Math.sqrt(n)); return r*r===n; }
 
@@ -1017,6 +1518,7 @@ function genSqrtMult() {
 // ════════════════════════════════════════════════════════
 // 正負の数: 2項の和  (-15〜+15)
 // ════════════════════════════════════════════════════════
+
 function genSignedSum2() {
   const pool = [];
   for(let a=-15; a<=15; a++) {
@@ -1039,6 +1541,7 @@ function genSignedSum2() {
 // ════════════════════════════════════════════════════════
 // 正負の数: 3項の和  (-15〜+15)
 // ════════════════════════════════════════════════════════
+
 function genSignedSum3() {
   const pool = [];
   for(let a=-12; a<=12; a++) {
@@ -1062,6 +1565,10 @@ function genSignedSum3() {
   }));
 }
 
+
+// ════════════════════════════════════════════════════════
+// 状態
+// ════════════════════════════════════════════════════════
 
 // ════════════════════════════════════════════════════════
 // 状態
@@ -1092,20 +1599,63 @@ function init() {
 
 function renderLevelGrid() {
   const grid = document.getElementById('levelGrid');
-  grid.innerHTML = LEVELS.map(lv => `
-    <div class="level-card" id="lc_${lv.key}" onclick="selectLevel('${lv.key}')">
-      <div class="badge" style="background:${lv.color}">${lv.label}</div>
-      <div class="lname">${lv.title}</div>
-      <div class="lmeta">${lv.desc}</div>
-    </div>
-  `).join('');
+
+  // グループ定義
+  const groups = [
+    { id:'10-8', cols:1, label:null },
+    { id:'7-4',  cols:2, label:null },
+    { id:'3-1',  cols:3, label:null },
+    { id:'exhibition', cols:2, label:'★ 小学生チャレンジ区間', labelColor:'#8B6914' },
+    { id:'dan',  cols:3, label:'段位（中学生）', labelColor:'#1A3A5C' },
+  ];
+
+  let html = '';
+  groups.forEach((grp, gi) => {
+    const items = LEVELS.filter(lv => lv.group === grp.id);
+    if(items.length === 0) return;
+
+    // 区切り線（最初以外）
+    if(gi > 0) html += `<div style="grid-column:1/-1;height:1px;background:var(--mist2);margin:4px 0;opacity:0.5;"></div>`;
+
+    // ラベル
+    if(grp.label) {
+      html += `<div style="grid-column:1/-1;padding:4px 6px;background:${grp.labelColor}18;border-left:3px solid ${grp.labelColor};font-size:11px;font-weight:700;color:${grp.labelColor};letter-spacing:0.06em;">${grp.label}</div>`;
+    }
+
+    // カードをcols列のグリッドに並べる
+    // 列数に応じてgrid-column-spanを指定
+    const colClass = grp.cols === 1 ? 'col-1' : grp.cols === 2 ? 'col-2' : 'col-3';
+    html += `<div class="sub-grid sub-grid-${grp.cols}" style="grid-column:1/-1;">`;
+    items.forEach(lv => {
+      if(lv.disabled) {
+        html += `<div class="level-card disabled" style="opacity:0.3;cursor:default;">
+          <div class="badge" style="background:${lv.color}">${lv.label}</div>
+          <div class="lname">${lv.title}</div>
+          <div class="lmeta">${lv.desc}</div>
+        </div>`;
+      } else {
+        html += `<div class="level-card" id="lc_${lv.key}" onclick="selectLevel('${lv.key}')">
+          <div class="badge" style="background:${lv.color}">${lv.label}</div>
+          <div class="lname">${lv.title}</div>
+          <div class="lmeta">${lv.desc}</div>
+        </div>`;
+      }
+    });
+    html += `</div>`;
+  });
+
+  grid.innerHTML = html;
 }
 
 function selectLevel(key) {
   selectedLevel = key;
   document.querySelectorAll('.level-card').forEach(c=>c.classList.remove('selected'));
-  document.getElementById(`lc_${key}`).classList.add('selected');
+  document.getElementById('lc_'+key).classList.add('selected');
   document.getElementById('startBtn').disabled = false;
+  // スタートボタンが見えるまでスクロール
+  setTimeout(()=>{
+    document.getElementById('startBtn').scrollIntoView({behavior:'smooth', block:'center'});
+  }, 80);
 }
 
 function selectMode(mode) {
@@ -1191,14 +1741,77 @@ function startSessionTimer(limitSec) {
   }, 1000);
 }
 
+// ════════════════════════════════════════════════════════
+// showQuestion・テンキー・採点 (統合版)
+// ════════════════════════════════════════════════════════
+
+// ── inputType ヘルパー ────────────────────────────────
+function getInputType() { return lastLevel && lastLevel.inputType || ''; }
+function isTwoBoxMode() {
+  const t=getInputType(); return t==='two'||t==='sqrt'||t==='frac'||t==='fracMixed';
+}
+
+// ── テンキー状態変数 ──────────────────────────────────
+let npValue='', npValue1='', npValue2='', npTwoPhase=1;
+let npFracPhase=1, npFracNum_v='', npFracDen_v='';
+let npMixPhase=1,  npMixInt_v='',  npMixNum_v='', npMixDen_v='';
+
+// ── syncVisibleInputs ─────────────────────────────────
+function syncVisibleInputs() {
+  const t = getInputType();
+  const isTB = isTwoBoxMode();
+  // シングル表示 / ツーボックス表示
+  const sb = document.getElementById('numpadSingleBox');
+  const tb = document.getElementById('numpadTwoBox');
+  if(sb) sb.style.display = isTB ? 'none' : 'block';
+  if(tb) tb.style.display = isTB ? 'block' : 'none';
+  // 旧inputは常に非表示
+  const sr=document.getElementById('singleAnswerRow');
+  const tr2=document.getElementById('twoAnswerRow');
+  if(sr) sr.style.display='none';
+  if(tr2) tr2.style.display='none';
+  // numpadTwoBox内のサブ行を切り替え
+  const r2  = document.getElementById('npRow2');
+  const rF  = document.getElementById('npRowFrac');
+  const rFM = document.getElementById('npRowFracMixed');
+  if(r2)  r2.style.display  = (t==='two'||t==='sqrt') ? 'flex'  : 'none';
+  if(rF)  rF.style.display  = t==='frac'       ? 'block' : 'none';
+  if(rFM) rFM.style.display = t==='fracMixed'  ? 'block' : 'none';
+}
+
+// ── npRefresh ─────────────────────────────────────────
+function npRefresh() {
+  const t = getInputType();
+  function el(id){ return document.getElementById(id); }
+  function set(id, val, active) {
+    const e=el(id); if(!e) return;
+    e.textContent = val||'？';
+    e.classList.toggle('active', !!active);
+  }
+  if(t==='frac') {
+    set('npFracNum', npFracNum_v, npFracPhase===1);
+    set('npFracDen', npFracDen_v, npFracPhase===2);
+  } else if(t==='fracMixed') {
+    set('npMixInt', npMixInt_v, npMixPhase===1);
+    set('npMixNum', npMixNum_v, npMixPhase===2);
+    set('npMixDen', npMixDen_v, npMixPhase===3);
+  } else if(isTwoBoxMode()) {
+    set('npDisplay1', npValue1, npTwoPhase===1);
+    set('npDisplay2', npValue2, npTwoPhase===2);
+  } else {
+    set('npDisplay', npValue, true);
+  }
+  syncVisibleInputs();
+}
+
+// ── showQuestion ──────────────────────────────────────
 function showQuestion() {
   const prob  = currentProblems[currentIndex];
   const total = currentProblems.length;
-  answered    = false;
+  answered = false;
 
-  // 基本表示の更新
-  document.getElementById('qNum').textContent      = `問題 ${currentIndex+1}`;
-  document.getElementById('qProgress').textContent = `${currentIndex+1} / ${total}`;
+  document.getElementById('qNum').textContent      = '問題 '+(currentIndex+1);
+  document.getElementById('qProgress').textContent = (currentIndex+1)+' / '+total;
   document.getElementById('qProblem').textContent  = prob.display;
   document.getElementById('answerHint').textContent = '';
   document.getElementById('answerHint').className  = 'answer-hint';
@@ -1206,386 +1819,253 @@ function showQuestion() {
   document.getElementById('progressBar').style.width = (currentIndex/total*100)+'%';
   document.getElementById('nextBtn').disabled = true;
 
-  // 入力モードの切り替え
-  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
-  document.getElementById('singleAnswerRow').style.display = isTwoBox ? 'none' : 'flex';
-  document.getElementById('twoAnswerRow').style.display    = isTwoBox ? 'flex' : 'none';
-
-  // ガイドテキスト更新
-  document.getElementById('opGuide').textContent = isTwoBox
-    ? '2つの数を入力（Tab で移動）→ Enter で採点 → 自動で次へ'
-    : '答えを入力 → Enter で採点　→　自動で次の問題へ';
+  const t  = getInputType();
+  const isTB = isTwoBoxMode();
+  const lv = lastLevel;
 
   // テンキー状態リセット
   npValue=''; npValue1=''; npValue2=''; npTwoPhase=1;
+  npFracPhase=1; npFracNum_v=''; npFracDen_v='';
+  npMixPhase=1;  npMixInt_v='';  npMixNum_v=''; npMixDen_v='';
+
+  // 決定ボタン
   const sub = document.getElementById('npSubmit');
-  if(sub) { sub.disabled=false; sub.textContent = isTwoBox ? '次へ →' : '決定'; }
-  npRefresh();
-  // displayのclass初期化
-  ['npDisplay','npDisplay1','npDisplay2'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.className='numpad-display'+(id==='npDisplay'&&!isTwoBox?' active':id==='npDisplay1'&&isTwoBox?' active':'');
-  });
+  if(sub){
+    sub.disabled=false;
+    sub.textContent = t==='frac' ? '分母へ →' :
+                      t==='fracMixed' ? '次へ →' :
+                      isTB ? '次へ →' : '決定';
+  }
 
-  problemStartTime = Date.now();
-}
+  // ガイドテキスト
+  document.getElementById('opGuide').textContent =
+    (t==='frac'||t==='fracMixed') ? '分数で入力 → 次へ → 決定で採点 → 自動で次へ' :
+    isTB ? '2つの数を入力 → 次へ → 決定で採点 → 自動で次へ' :
+    '答えを入力 → 決定で採点 → 自動で次の問題へ';
 
-
-function startSessionTimer(limitSec) {
-  clearInterval(sessionTimer);
-  const bar   = document.getElementById('timerBar');
-  const text  = document.getElementById('timerText');
-  let elapsed = 0;
-
-  sessionTimer = setInterval(()=>{
-    elapsed++;
-    totalTime = elapsed;
-    const remain = limitSec - elapsed;
-    if(remain <= 0) {
-      clearInterval(sessionTimer);
-      finishQuiz(true); // 時間切れ
-      return;
-    }
-    const pct = (remain/limitSec)*100;
-    bar.style.width = pct+'%';
-    bar.className = 'timer-bar' +
-      (pct<=15?' danger': pct<=30?' warning':'');
-    const m=Math.floor(remain/60), s=remain%60;
-    text.textContent = `残り ${m}:${s<10?'0':''}${s}`;
-  }, 1000);
-}
-
-function showQuestion() {
-  const prob = currentProblems[currentIndex];
-  const total = currentProblems.length;
-  answered = false;
-
-  document.getElementById('qNum').textContent = `問題 ${currentIndex+1}`;
-  document.getElementById('qProgress').textContent = `${currentIndex+1} / ${total}`;
-  document.getElementById('qProblem').textContent = prob.display;
-  document.getElementById('answerHint').textContent = '';
-  document.getElementById('answerHint').className = 'answer-hint';
-  document.getElementById('practiceAnswerDiv').innerHTML = '';
-  document.getElementById('progressBar').style.width = (currentIndex / total * 100) + '%';
-
-  const lv = lastLevel;
-  const isTwoBox = lv && (lv.inputType==='two' || lv.inputType==='sqrt');
-
-  // 旧入力欄は内部的には残すが、表示はテンキー側に一本化
-  document.getElementById('singleAnswerRow').style.display = 'none';
-  document.getElementById('twoAnswerRow').style.display = 'none';
-
-  if(isTwoBox) {
-    const i1 = document.getElementById('answerInput1');
-    const i2 = document.getElementById('answerInput2');
-    i1.value = '';
-    i1.className = 'answer-input';
-    i1.disabled = false;
-    i2.value = '';
-    i2.className = 'answer-input';
-    i2.disabled = false;
+  // ラベル・セパレーター
+  if(lv && lv.inputLabels) {
+    const lb1=document.getElementById('npLabel1');
+    const lb2=document.getElementById('npLabel2');
+    if(lb1) lb1.textContent=lv.inputLabels[0];
+    if(lb2) lb2.textContent=lv.inputLabels[1];
   } else {
-    const input = document.getElementById('answerInput');
-    input.value = '';
-    input.className = 'answer-input';
-    input.disabled = false;
+    const lb1=document.getElementById('npLabel1');
+    const lb2=document.getElementById('npLabel2');
+    if(lb1) lb1.textContent='1つ目';
+    if(lb2) lb2.textContent='2つ目';
   }
+  const sep=document.getElementById('npSep');
+  if(sep) sep.textContent = t==='sqrt' ? '√' : 'と';
 
-  // テンキー状態を毎問リセット
-  npValue = '';
-  npValue1 = '';
-  npValue2 = '';
-  npTwoPhase = 1;
-
-  const submitBtn = document.getElementById('npSubmit');
-  if(submitBtn) {
-    submitBtn.disabled = false;
-    submitBtn.textContent = isTwoBox ? '次へ →' : '決定';
-  }
-
-  document.getElementById('nextBtn').disabled = true;
-  document.getElementById('opGuide').textContent = isTwoBox
-    ? '2つの数を入力（Tabで2つ目へ）→ 決定で採点 → 自動で次へ'
-    : '答えを入力 → 決定で採点 → 自動で次の問題へ';
-
-  ['npDisplay','npDisplay1','npDisplay2'].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.className = 'numpad-display';
+  // 全displayのクラスをリセット
+  ['npDisplay','npDisplay1','npDisplay2',
+   'npFracNum','npFracDen','npMixInt','npMixNum','npMixDen'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.className='numpad-display';
   });
-  const activeId = isTwoBox ? 'npDisplay1' : 'npDisplay';
-  const activeEl = document.getElementById(activeId);
-  if(activeEl) activeEl.classList.add('active');
-
-  // ラベル更新（inputLabelsがあれば使う）
-  if(isTwoBox && lv.inputLabels) {
-    const lb1 = document.getElementById('npLabel1');
-    const lb2 = document.getElementById('npLabel2');
-    if(lb1) lb1.textContent = lv.inputLabels[0] || '1つ目';
-    if(lb2) lb2.textContent = lv.inputLabels[1] || '2つ目';
-  } else if(isTwoBox) {
-    const lb1 = document.getElementById('npLabel1');
-    const lb2 = document.getElementById('npLabel2');
-    if(lb1) lb1.textContent = '1つ目';
-    if(lb2) lb2.textContent = '2つ目';
-  }
-  // sqrt モードではセパレーターを √ に
-  const sep = document.getElementById('npSep');
-  if(sep) sep.textContent = (lv.inputType==='sqrt') ? '√' : 'と';
 
   syncVisibleInputs();
   npRefresh();
   problemStartTime = Date.now();
 }
 
-// ════════════════════════════════════════════════════════
-// 答え入力・判定
-// ════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════
-// テンキーパッド
-// ══════════════════════════════════════════════════
-let npValue    = '';   // 現在の入力値（文字列）
-let npTwoPhase = 1;    // 2ボックスのとき1か2
-let npValue1   = '';
-let npValue2   = '';
-
-function npGetDisplay() {
-  return document.getElementById('npDisplay');
-}
-function npGetDisplay1() { return document.getElementById('npDisplay1'); }
-function npGetDisplay2() { return document.getElementById('npDisplay2'); }
-
-function isTwoBoxMode() {
-  return lastLevel && (lastLevel.inputType==='two' || lastLevel.inputType==='sqrt');
-}
-
-function syncVisibleInputs() {
-  const isTwoBox = isTwoBoxMode();
-  const singleBox = document.getElementById('numpadSingleBox');
-  const twoBox = document.getElementById('numpadTwoBox');
-  const input = document.getElementById('answerInput');
-  const input1 = document.getElementById('answerInput1');
-  const input2 = document.getElementById('answerInput2');
-  const singleRow = document.getElementById('singleAnswerRow');
-  const twoRow = document.getElementById('twoAnswerRow');
-
-  if(singleBox) singleBox.style.display = isTwoBox ? 'none' : 'block';
-  if(twoBox) twoBox.style.display = isTwoBox ? 'block' : 'none';
-
-  if(singleRow) singleRow.style.display = 'none';
-  if(twoRow) twoRow.style.display = 'none';
-
-  if(input) input.value = npValue;
-  if(input1) input1.value = npValue1;
-  if(input2) input2.value = npValue2;
-}
-
-function npRefresh() {
-  const isTwoBox = isTwoBoxMode();
-  if(isTwoBox) {
-    const d1 = npGetDisplay1(); const d2 = npGetDisplay2();
-    if(d1) d1.textContent = npValue1==='' ? '？' : npValue1;
-    if(d2) d2.textContent = npValue2==='' ? '？' : npValue2;
-    // アクティブなボックスをハイライト
-    if(d1) d1.classList.toggle('active', npTwoPhase===1 && npValue1==='');
-    if(d2) d2.classList.toggle('active', npTwoPhase===2 && npValue2==='');
-  } else {
-    const d = npGetDisplay();
-    if(d) d.textContent = npValue==='' ? '？' : npValue;
-    if(d) d.classList.toggle('active', npValue==='');
-  }
-  syncVisibleInputs();
-}
-
+// ── npInput ───────────────────────────────────────────
 function npInput(ch) {
   if(answered) return;
-  const isTwoBox = isTwoBoxMode();
-  if(isTwoBox) {
-    if(npTwoPhase===1) {
-      if(ch==='-' && npValue1!=='') return; // 先頭のみ
-      if(ch==='-' && npValue1==='') { npValue1='-'; }
-      else if(npValue1.length < 4)   npValue1 += ch;
+  const t=getInputType();
+  if(t==='frac') {
+    if(npFracPhase===1){
+      if(ch==='-'&&npFracNum_v!=='') return;
+      if(ch==='-') npFracNum_v='-';
+      else if(npFracNum_v.length<4) npFracNum_v+=ch;
     } else {
-      if(ch==='-' && npValue2==='') { npValue2='-'; }
-      else if(npValue2.length < 4)   npValue2 += ch;
+      if(ch==='-') return;
+      if(npFracDen_v.length<3) npFracDen_v+=ch;
+    }
+  } else if(t==='fracMixed') {
+    if(npMixPhase===1){
+      if(ch==='-'&&npMixInt_v!=='') return;
+      if(ch==='-') npMixInt_v='-';
+      else if(npMixInt_v.length<3) npMixInt_v+=ch;
+    } else if(npMixPhase===2){
+      if(ch==='-') return;
+      if(npMixNum_v.length<3) npMixNum_v+=ch;
+    } else {
+      if(ch==='-') return;
+      if(npMixDen_v.length<3) npMixDen_v+=ch;
+    }
+  } else if(isTwoBoxMode()) {
+    if(npTwoPhase===1){
+      if(ch==='-'&&npValue1!=='') return;
+      if(ch==='-') npValue1='-'; else if(npValue1.length<4) npValue1+=ch;
+    } else {
+      if(ch==='-'&&npValue2==='') npValue2='-';
+      else if(npValue2.length<4) npValue2+=ch;
     }
   } else {
-    if(ch==='-' && npValue!=='') return;
-    if(ch==='-' && npValue==='') { npValue='-'; }
-    else if(npValue.length < 5)   npValue += ch;
+    if(ch==='-'&&npValue!=='') return;
+    if(ch==='-') npValue='-'; else if(npValue.length<5) npValue+=ch;
   }
   npRefresh();
-
-  // 2ボックス: 1つ目が入力されたら2つ目の表示をアクティブに
-  if(isTwoBox && npTwoPhase===1 && npValue1.length===1 && npValue1!=='-') {
-    // フェーズは自動で切り替えない（決定ボタンかsubmitで）
-  }
 }
 
+// ── npDel ─────────────────────────────────────────────
 function npDel() {
   if(answered) return;
-  const isTwoBox = isTwoBoxMode();
-  if(isTwoBox) {
-    if(npTwoPhase===1) npValue1 = npValue1.slice(0,-1);
-    else               npValue2 = npValue2.slice(0,-1);
+  const t=getInputType();
+  if(t==='frac'){
+    if(npFracPhase===1) npFracNum_v=npFracNum_v.slice(0,-1);
+    else                npFracDen_v=npFracDen_v.slice(0,-1);
+  } else if(t==='fracMixed'){
+    if(npMixPhase===1)      npMixInt_v=npMixInt_v.slice(0,-1);
+    else if(npMixPhase===2) npMixNum_v=npMixNum_v.slice(0,-1);
+    else                    npMixDen_v=npMixDen_v.slice(0,-1);
+  } else if(isTwoBoxMode()){
+    if(npTwoPhase===1) npValue1=npValue1.slice(0,-1);
+    else               npValue2=npValue2.slice(0,-1);
   } else {
-    npValue = npValue.slice(0,-1);
+    npValue=npValue.slice(0,-1);
   }
   npRefresh();
 }
 
+// ── npSubmit ──────────────────────────────────────────
 function npSubmit() {
   if(answered) return;
-  const isTwoBox = isTwoBoxMode();
-  if(isTwoBox) {
-    if(npTwoPhase===1) {
-      // 1つ目が空なら何もしない
-      if(npValue1==='' || npValue1==='-') return;
-      // 1つ目確定 → 2つ目入力フェーズへ
-      npTwoPhase = 2;
-      const d1 = npGetDisplay1();
-      if(d1) { d1.classList.remove('active'); }
-      const d2 = npGetDisplay2();
-      if(d2) d2.classList.add('active');
-      // submitボタンのラベルを変更
-      document.getElementById('npSubmit').textContent = '決定';
+  const t=getInputType();
+  const sub=document.getElementById('npSubmit');
+
+  if(t==='frac'){
+    if(npFracPhase===1){
+      if(!npFracNum_v||npFracNum_v==='-') return;
+      npFracPhase=2;
+      const dn=document.getElementById('npFracNum'); if(dn) dn.classList.remove('active');
+      const dd=document.getElementById('npFracDen'); if(dd) dd.classList.add('active');
+      if(sub) sub.textContent='決定';
       return;
     }
-    // 2つ目も入力済みなら採点
-    if(npValue2==='' || npValue2==='-') return;
+    if(!npFracDen_v||npFracDen_v==='0') return;
+    checkAnswerFrac(npFracNum_v, npFracDen_v);
+
+  } else if(t==='fracMixed'){
+    if(npMixPhase===1){
+      if(!npMixInt_v) return;
+      npMixPhase=2;
+      const di=document.getElementById('npMixInt'); if(di) di.classList.remove('active');
+      const dn=document.getElementById('npMixNum'); if(dn) dn.classList.add('active');
+      if(sub) sub.textContent='分子入力中';
+      return;
+    }
+    if(npMixPhase===2){
+      if(!npMixNum_v) return;
+      npMixPhase=3;
+      const dn=document.getElementById('npMixNum'); if(dn) dn.classList.remove('active');
+      const dd=document.getElementById('npMixDen'); if(dd) dd.classList.add('active');
+      if(sub) sub.textContent='決定';
+      return;
+    }
+    if(!npMixDen_v||npMixDen_v==='0') return;
+    checkAnswerFracMixed(npMixInt_v, npMixNum_v, npMixDen_v);
+
+  } else if(isTwoBoxMode()){
+    if(npTwoPhase===1){
+      if(npValue1===''||npValue1==='-') return;
+      npTwoPhase=2;
+      const d1=document.getElementById('npDisplay1'); if(d1) d1.classList.remove('active');
+      const d2=document.getElementById('npDisplay2'); if(d2) d2.classList.add('active');
+      if(sub) sub.textContent='決定';
+      return;
+    }
+    if(npValue2===''||npValue2==='-') return;
     checkAnswerTwo(npValue1, npValue2);
   } else {
-    if(npValue==='' || npValue==='-') return;
+    if(npValue===''||npValue==='-') return;
     checkAnswer();
   }
 }
 
 // PCキーボードとの共存
-document.addEventListener('keydown', function(e) {
-  if(answered) { if(e.key==='Enter') { e.preventDefault(); nextQuestion(); } return; }
-  const isTwoBox = isTwoBoxMode();
-  if(e.key>='0' && e.key<='9') { e.preventDefault(); npInput(e.key); }
-  else if(e.key==='-')  { e.preventDefault(); npInput('-'); }
-  else if(e.key==='Backspace') { e.preventDefault(); npDel(); }
-  else if(e.key==='Enter') {
+document.addEventListener('keydown', function(e){
+  if(answered){ if(e.key==='Enter'){e.preventDefault();} return; }
+  const t=getInputType(); const isTB=isTwoBoxMode();
+  if(e.key>='0'&&e.key<='9'){ e.preventDefault(); npInput(e.key); }
+  else if(e.key==='-'){  e.preventDefault(); npInput('-'); }
+  else if(e.key==='Backspace'){ e.preventDefault(); npDel(); }
+  else if(e.key==='Enter'){
     e.preventDefault();
-    if(isTwoBox && npTwoPhase===1 && npValue1!=='' && npValue1!=='-') {
-      npSubmit(); // 1つ目確定
-    } else if(isTwoBox && npTwoPhase===2 && npValue2!=='' && npValue2!=='-') {
-      npSubmit(); // 採点
-    } else if(!isTwoBox && npValue!=='' && npValue!=='-') {
-      npSubmit(); // 採点
-    }
+    npSubmit();
   }
-  else if(e.key==='Tab' && isTwoBox) {
-    e.preventDefault(); npSubmit(); // Tabで次のボックスへ
-  }
+  else if(e.key==='Tab'){ e.preventDefault(); npSubmit(); }
 });
+function handleKeydown(e){}
+function handleKeydownTwo(e,b){}
+function handleInput(e){}
 
-// handleKeydown は不要になるが互換のため残す
-function handleKeydown(e) {}
-function handleKeydownTwo(e, boxNum) {}
-
-function checkAnswerTwo(v1, v2) {
-  if(answered) return;
-  const prob    = currentProblems[currentIndex];
-  const elapsed = (Date.now()-problemStartTime)/1000;
-  const [a,b]   = prob.answer2;
-  // sqrtモード: 係数と√の中を順序固定で判定（順序不問なし）
-  const isSqrt  = lastLevel && lastLevel.inputType==='sqrt';
-  const correct = isSqrt
-    ? (Number(v1)===a && Number(v2)===b)
-    : ((Number(v1)===a && Number(v2)===b) || (Number(v1)===b && Number(v2)===a));
-
-  answered = true;
-  results.push({ prob:prob.display, answer:prob.answer, userAnswer:`${v1} と ${v2}`, correct, time:elapsed });
-
-  const hint = document.getElementById('answerHint');
-  const d1 = document.getElementById('npDisplay1');
-  const d2 = document.getElementById('npDisplay2');
-  if(correct) {
-    if(d1) { d1.classList.remove('active'); d1.classList.add('correct'); }
-    if(d2) { d2.classList.remove('active'); d2.classList.add('correct'); }
+// ── doResult (採点後処理) ─────────────────────────────
+function doResult(userAns, correct, elapsed) {
+  answered=true;
+  const prob=currentProblems[currentIndex];
+  results.push({prob:prob.display,answer:prob.answer,userAnswer:userAns,correct,time:elapsed});
+  const hint=document.getElementById('answerHint');
+  const qc  =document.getElementById('questionCard');
+  if(correct){
     hint.textContent='✓ 正解！'; hint.className='answer-hint correct-msg';
-    document.getElementById('questionCard').classList.add('flash-correct');
-    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-correct'),500);
+    if(qc){qc.classList.add('flash-correct'); setTimeout(()=>qc.classList.remove('flash-correct'),500);}
   } else {
-    if(d1) { d1.classList.remove('active'); d1.classList.add('incorrect'); }
-    if(d2) { d2.classList.remove('active'); d2.classList.add('incorrect'); }
-    const showAns = selectedMode==='practice' ? `　正解: ${prob.answer}` : '';
+    const showAns=selectedMode==='practice'?` 　正解: ${prob.answer}`:'';
     hint.textContent=`✗ 不正解${showAns}`; hint.className='answer-hint incorrect-msg';
-    document.getElementById('questionCard').classList.add('flash-incorrect');
-    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-incorrect'),500);
+    if(qc){qc.classList.add('flash-incorrect'); setTimeout(()=>qc.classList.remove('flash-incorrect'),500);}
   }
-  document.getElementById('npSubmit').disabled = true;
-  const snapIndex2 = currentIndex;
-  const delay = correct ? 80 : (selectedMode==='practice' ? 180 : 80);
-  setTimeout(()=>{ if(answered && currentIndex===snapIndex2) nextQuestion(); }, delay);
+  ['npDisplay','npFracNum','npFracDen','npMixInt','npMixNum','npMixDen',
+   'npDisplay1','npDisplay2'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e){ e.classList.remove('active'); e.classList.add(correct?'correct':'incorrect'); }
+  });
+  document.getElementById('npSubmit').disabled=true;
+  const snap=currentIndex;
+  const delay=correct?650:(selectedMode==='practice'?1200:650);
+  setTimeout(()=>{ if(answered&&currentIndex===snap) nextQuestion(); },delay);
 }
 
-// document全体でEnterを監視（採点後の「次へ」用）
-document.addEventListener('keydown', function(e) {
-  if(e.key==='Enter' && answered) {
-    e.preventDefault();
-    nextQuestion();
-  }
-});
-
-function handleInput(e) {
-  // 入力がある状態でEnterを待つ（リアルタイム判定はしない）
-}
-
+// ── 採点関数 ──────────────────────────────────────────
 function checkAnswer() {
   if(answered) return;
-  const userAns = String(npValue).trim();
-  if(!userAns || userAns==='-') return;
-
-  const prob    = currentProblems[currentIndex];
-  const elapsed = (Date.now()-problemStartTime)/1000;
-  const correct = userAns === prob.answer;
-
-  answered = true;
-  results.push({ prob:prob.display, answer:prob.answer, userAnswer:userAns, correct, time:elapsed });
-
-  const hint = document.getElementById('answerHint');
-  const disp = document.getElementById('npDisplay');
-  if(correct) {
-    if(disp) { disp.classList.remove('active'); disp.classList.add('correct'); }
-    hint.textContent='✓ 正解！'; hint.className='answer-hint correct-msg';
-    document.getElementById('questionCard').classList.add('flash-correct');
-    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-correct'),500);
-  } else {
-    if(disp) { disp.classList.remove('active'); disp.classList.add('incorrect'); }
-    const showAns = selectedMode==='practice' ? ` 　正解: ${prob.answer}` : '';
-    hint.textContent=`✗ 不正解${showAns}`; hint.className='answer-hint incorrect-msg';
-    document.getElementById('questionCard').classList.add('flash-incorrect');
-    setTimeout(()=>document.getElementById('questionCard').classList.remove('flash-incorrect'),500);
-  }
-  document.getElementById('npSubmit').disabled = true;
-  const snapIndex2 = currentIndex;
-  const delay = correct ? 80 : (selectedMode==='practice' ? 180 : 80);
-  setTimeout(()=>{ if(answered && currentIndex===snapIndex2) nextQuestion(); }, delay);
+  const v=String(npValue).trim();
+  if(!v||v==='-') return;
+  const prob=currentProblems[currentIndex];
+  doResult(v, v===prob.answer, (Date.now()-problemStartTime)/1000);
 }
 
-function skipQuestion() {
+function checkAnswerTwo(v1,v2) {
   if(answered) return;
-  const prob    = currentProblems[currentIndex];
-  const elapsed = (Date.now()-problemStartTime)/1000;
-  results.push({
-    prob:      prob.display,
-    answer:    prob.answer,
-    userAnswer:'',
-    correct:   false,
-    time:      elapsed,
-    skipped:   true
-  });
-  answered = true;
-
-  const hint = document.getElementById('answerHint');
-  hint.textContent = `→ スキップ　正解: ${prob.answer}`;
-  hint.className = 'answer-hint incorrect-msg';
-  document.getElementById('answerInput').disabled = true;
-  document.getElementById('nextBtn').disabled = false;
+  const prob=currentProblems[currentIndex];
+  const [a,b]=prob.answer2;
+  const isSqrt=getInputType()==='sqrt';
+  const correct=isSqrt
+    ? (Number(v1)===a&&Number(v2)===b)
+    : ((Number(v1)===a&&Number(v2)===b)||(Number(v1)===b&&Number(v2)===a));
+  doResult(`${v1} と ${v2}`, correct, (Date.now()-problemStartTime)/1000);
 }
+
+function checkAnswerFrac(numStr,denStr) {
+  if(answered) return;
+  const prob=currentProblems[currentIndex];
+  const userAns=denStr==='1'?numStr:`${numStr}/${denStr}`;
+  doResult(userAns, userAns===prob.answer, (Date.now()-problemStartTime)/1000);
+}
+
+function checkAnswerFracMixed(intStr,numStr,denStr) {
+  if(answered) return;
+  const prob=currentProblems[currentIndex];
+  const w=parseInt(intStr)||0;
+  let userAns;
+  if(!numStr||numStr==='0') userAns=intStr;
+  else if(w===0)            userAns=`${numStr}/${denStr}`;
+  else                      userAns=`${intStr}と${numStr}/${denStr}`;
+  doResult(userAns, userAns===prob.answer, (Date.now()-problemStartTime)/1000);
+}
+
+function skipQuestion(){}  // テンキーUIではスキップなし
 
 function nextQuestion() {
   if(!answered) return; // 未採点なら何もしない
