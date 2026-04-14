@@ -660,12 +660,12 @@
         <div class="numpad-label">テンキー入力</div>
         <div class="numpad-two-row">
           <div class="nd-wrap">
-            <div class="numpad-label">1つ目</div>
+            <div class="numpad-label" id="npLabel1">1つ目</div>
             <div class="numpad-display active" id="npDisplay1">？</div>
           </div>
-          <div class="nd-sep">と</div>
+          <div class="nd-sep" id="npSep">と</div>
           <div class="nd-wrap">
-            <div class="numpad-label">2つ目</div>
+            <div class="numpad-label" id="npLabel2">2つ目</div>
             <div class="numpad-display" id="npDisplay2">？</div>
           </div>
         </div>
@@ -774,8 +774,36 @@ const LEVELS = [
     key:"sandan_e", label:"三段E", color:"#AA3322",
     title:"和と積 → 2数を求める", desc:"20問・3分",
     timeLimit:180, nQ:20, passRate:0.85,
-    inputType:"two",   // ← 2ボックス入力
+    inputType:"two",
     gen: ()=>genSumProduct()
+  },
+  {
+    key:"yondan_a", label:"四段A", color:"#D85A30",
+    title:"ルート変形  √n → a√b", desc:"20問・2分",
+    timeLimit:120, nQ:20, passRate:0.85,
+    inputType:"sqrt",
+    inputLabels:["係数","√の中"],
+    gen: ()=>genSqrtTransform()
+  },
+  {
+    key:"yondan_b", label:"四段B", color:"#D85A30",
+    title:"ルートのかけ算  √a×√b", desc:"20問・2分",
+    timeLimit:120, nQ:20, passRate:0.85,
+    inputType:"sqrt",
+    inputLabels:["係数","√の中"],
+    gen: ()=>genSqrtMult()
+  },
+  {
+    key:"seifuku2", label:"正負①", color:"#3C3489",
+    title:"正負の数 2項の和", desc:"20問・2分",
+    timeLimit:120, nQ:20, passRate:0.88,
+    gen: ()=>genSignedSum2()
+  },
+  {
+    key:"seifuku3", label:"正負②", color:"#3C3489",
+    title:"正負の数 3項の和", desc:"20問・3分",
+    timeLimit:180, nQ:20, passRate:0.85,
+    gen: ()=>genSignedSum3()
   },
 ];
 
@@ -935,6 +963,105 @@ function genSumProduct() {
   const all = shuffle([...plusProbs, ...mixProbs, ...minusProbs]);
   return all.slice(0,20);
 }
+
+// ════════════════════════════════════════════════════════
+// 四段A: ルート変形  √n → a√b
+// ════════════════════════════════════════════════════════
+function simplifySqrt(n) {
+  // √n を a√b に変換。返値: {coef:a, rad:b}
+  let coef=1, rad=n;
+  for(let i=2; i*i<=rad; i++) {
+    while(rad%(i*i)===0) { coef*=i; rad=Math.floor(rad/(i*i)); }
+  }
+  return {coef, rad};
+}
+
+function genSqrtTransform() {
+  // a√b に変形できる数（8〜100・b≤15・a>1）
+  const pool = [];
+  for(let n=8; n<=100; n++) {
+    const {coef,rad} = simplifySqrt(n);
+    if(coef>1 && rad>1 && rad<=15) pool.push({n,coef,rad});
+  }
+  return shuffle(pool).slice(0,20).map(({n,coef,rad})=>({
+    display: `√${n}`,
+    answer:  coef===1 ? `√${rad}` : `${coef}√${rad}`,
+    answer2: [coef, rad],   // [係数, √の中]
+    sqrtForm: true
+  }));
+}
+
+// ════════════════════════════════════════════════════════
+// 四段B: ルートのかけ算  √a × √b = c√d
+// ════════════════════════════════════════════════════════
+function genSqrtMult() {
+  function isPerfectSq(n){ const r=Math.round(Math.sqrt(n)); return r*r===n; }
+
+  const pool = [];
+  for(let a=2; a<=19; a++) {
+    for(let b=a+1; b<=19; b++) {
+      if(isPerfectSq(a) || isPerfectSq(b)) continue;
+      const n = a*b;
+      const {coef,rad} = simplifySqrt(n);
+      if(coef>1 && rad>1) pool.push({a,b,coef,rad});
+    }
+  }
+  return shuffle(pool).slice(0,20).map(({a,b,coef,rad})=>({
+    display: `√${a} × √${b}`,
+    answer:  `${coef}√${rad}`,
+    answer2: [coef, rad],
+    sqrtForm: true
+  }));
+}
+
+// ════════════════════════════════════════════════════════
+// 正負の数: 2項の和  (-15〜+15)
+// ════════════════════════════════════════════════════════
+function genSignedSum2() {
+  const pool = [];
+  for(let a=-15; a<=15; a++) {
+    if(a===0) continue;
+    for(let b=-15; b<=15; b++) {
+      if(b===0) continue;
+      if(a===b) continue;
+      if(a>0 && b>0) continue; // 両方プラスは9級でカバー
+      const s=a+b;
+      if(s<-20||s>20) continue; // 答えの範囲制限
+      pool.push([a,b]);
+    }
+  }
+  return shuffle(pool).slice(0,20).map(([a,b])=>({
+    display: `${a}　　　${b}`,   // 全角スペースで間隔を空ける
+    answer:  String(a+b)
+  }));
+}
+
+// ════════════════════════════════════════════════════════
+// 正負の数: 3項の和  (-15〜+15)
+// ════════════════════════════════════════════════════════
+function genSignedSum3() {
+  const pool = [];
+  for(let a=-12; a<=12; a++) {
+    if(a===0) continue;
+    for(let b=-12; b<=12; b++) {
+      if(b===0) continue;
+      for(let c=-12; c<=12; c++) {
+        if(c===0) continue;
+        // 最低1つはマイナス
+        if(a>0 && b>0 && c>0) continue;
+        // 答えが-20〜+20に収まるもの
+        const s=a+b+c;
+        if(s<-20||s>20) continue;
+        pool.push([a,b,c]);
+      }
+    }
+  }
+  return shuffle(pool).slice(0,20).map(([a,b,c])=>({
+    display: `${a}　　　${b}　　　${c}`,
+    answer:  String(a+b+c)
+  }));
+}
+
 
 // ════════════════════════════════════════════════════════
 // 状態
@@ -1142,7 +1269,7 @@ function showQuestion() {
   document.getElementById('progressBar').style.width = (currentIndex / total * 100) + '%';
 
   const lv = lastLevel;
-  const isTwoBox = lv && lv.inputType === 'two';
+  const isTwoBox = lv && (lv.inputType==='two' || lv.inputType==='sqrt');
 
   // 旧入力欄は内部的には残すが、表示はテンキー側に一本化
   document.getElementById('singleAnswerRow').style.display = 'none';
@@ -1189,6 +1316,22 @@ function showQuestion() {
   const activeEl = document.getElementById(activeId);
   if(activeEl) activeEl.classList.add('active');
 
+  // ラベル更新（inputLabelsがあれば使う）
+  if(isTwoBox && lv.inputLabels) {
+    const lb1 = document.getElementById('npLabel1');
+    const lb2 = document.getElementById('npLabel2');
+    if(lb1) lb1.textContent = lv.inputLabels[0] || '1つ目';
+    if(lb2) lb2.textContent = lv.inputLabels[1] || '2つ目';
+  } else if(isTwoBox) {
+    const lb1 = document.getElementById('npLabel1');
+    const lb2 = document.getElementById('npLabel2');
+    if(lb1) lb1.textContent = '1つ目';
+    if(lb2) lb2.textContent = '2つ目';
+  }
+  // sqrt モードではセパレーターを √ に
+  const sep = document.getElementById('npSep');
+  if(sep) sep.textContent = (lv.inputType==='sqrt') ? '√' : 'と';
+
   syncVisibleInputs();
   npRefresh();
   problemStartTime = Date.now();
@@ -1211,8 +1354,12 @@ function npGetDisplay() {
 function npGetDisplay1() { return document.getElementById('npDisplay1'); }
 function npGetDisplay2() { return document.getElementById('npDisplay2'); }
 
+function isTwoBoxMode() {
+  return lastLevel && (lastLevel.inputType==='two' || lastLevel.inputType==='sqrt');
+}
+
 function syncVisibleInputs() {
-  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  const isTwoBox = isTwoBoxMode();
   const singleBox = document.getElementById('numpadSingleBox');
   const twoBox = document.getElementById('numpadTwoBox');
   const input = document.getElementById('answerInput');
@@ -1233,7 +1380,7 @@ function syncVisibleInputs() {
 }
 
 function npRefresh() {
-  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  const isTwoBox = isTwoBoxMode();
   if(isTwoBox) {
     const d1 = npGetDisplay1(); const d2 = npGetDisplay2();
     if(d1) d1.textContent = npValue1==='' ? '？' : npValue1;
@@ -1251,7 +1398,7 @@ function npRefresh() {
 
 function npInput(ch) {
   if(answered) return;
-  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  const isTwoBox = isTwoBoxMode();
   if(isTwoBox) {
     if(npTwoPhase===1) {
       if(ch==='-' && npValue1!=='') return; // 先頭のみ
@@ -1276,7 +1423,7 @@ function npInput(ch) {
 
 function npDel() {
   if(answered) return;
-  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  const isTwoBox = isTwoBoxMode();
   if(isTwoBox) {
     if(npTwoPhase===1) npValue1 = npValue1.slice(0,-1);
     else               npValue2 = npValue2.slice(0,-1);
@@ -1288,7 +1435,7 @@ function npDel() {
 
 function npSubmit() {
   if(answered) return;
-  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  const isTwoBox = isTwoBoxMode();
   if(isTwoBox) {
     if(npTwoPhase===1) {
       // 1つ目が空なら何もしない
@@ -1315,7 +1462,7 @@ function npSubmit() {
 // PCキーボードとの共存
 document.addEventListener('keydown', function(e) {
   if(answered) { if(e.key==='Enter') { e.preventDefault(); nextQuestion(); } return; }
-  const isTwoBox = lastLevel && lastLevel.inputType === 'two';
+  const isTwoBox = isTwoBoxMode();
   if(e.key>='0' && e.key<='9') { e.preventDefault(); npInput(e.key); }
   else if(e.key==='-')  { e.preventDefault(); npInput('-'); }
   else if(e.key==='Backspace') { e.preventDefault(); npDel(); }
@@ -1343,7 +1490,11 @@ function checkAnswerTwo(v1, v2) {
   const prob    = currentProblems[currentIndex];
   const elapsed = (Date.now()-problemStartTime)/1000;
   const [a,b]   = prob.answer2;
-  const correct = (Number(v1)===a && Number(v2)===b) || (Number(v1)===b && Number(v2)===a);
+  // sqrtモード: 係数と√の中を順序固定で判定（順序不問なし）
+  const isSqrt  = lastLevel && lastLevel.inputType==='sqrt';
+  const correct = isSqrt
+    ? (Number(v1)===a && Number(v2)===b)
+    : ((Number(v1)===a && Number(v2)===b) || (Number(v1)===b && Number(v2)===a));
 
   answered = true;
   results.push({ prob:prob.display, answer:prob.answer, userAnswer:`${v1} と ${v2}`, correct, time:elapsed });
