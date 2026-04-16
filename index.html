@@ -830,8 +830,7 @@ const LEVELS = [
   {key:"3kyuE", label:"3級E", color:"#C8820A", group:"3-1",
    title:"工夫MIX（3A〜3D）",desc:"12問・3分", timeLimit:180, nQ:12, passRate:0.85, gen:()=>genKakuMix3()},
   {key:"3kyuF", label:"3級F", color:"#C8820A", group:"3-1",
-   title:"素因数分解",   desc:"12問・2分",     timeLimit:120, nQ:12, passRate:0.85,
-   inputType:"two", inputLabels:["小","大"], gen:()=>genPrimeFactorize2()},
+   title:"素因数分解",   desc:"12問・2分",     timeLimit:120, nQ:12, passRate:0.85, gen:()=>genPrimeFactorize()},
   {key:"3kyuG", label:"3級G", color:"#C8820A", group:"3-1",
    title:"素因数の積→元",desc:"12問・2分",     timeLimit:120, nQ:12, passRate:0.85, gen:()=>genFactorProduct()},
   {key:"3kyuH", label:"3級H", color:"#C8820A", group:"3-1",
@@ -839,11 +838,11 @@ const LEVELS = [
   {key:"3kyuI", label:"3級I", color:"#C8820A", group:"3-1",
    title:"和差算→2数",  desc:"20問・3分",     timeLimit:180, nQ:20, passRate:0.85, inputType:"two", gen:()=>genSumDiff()},
   {key:"2kyuA", label:"2級A", color:"#0C447C", group:"3-1",
-   title:"分数たし引き①",desc:"同分母真分数・10問・2分",   timeLimit:120, nQ:10, passRate:0.88, inputType:"fracMixed",      gen:()=>gen2kyu1()},
+   title:"分数たし引き①",desc:"同分母真分数・10問・2分",   timeLimit:120, nQ:10, passRate:0.88, inputType:"frac",      gen:()=>gen2kyu1()},
   {key:"2kyuB", label:"2級B", color:"#0C447C", group:"3-1",
    title:"分数たし引き②",desc:"同分母帯分数・10問・2分30秒",timeLimit:150,nQ:10, passRate:0.85, inputType:"fracMixed", gen:()=>gen2kyu2()},
   {key:"2kyuC", label:"2級C", color:"#0C447C", group:"3-1",
-   title:"分数たし引き③",desc:"通分・10問・3分",          timeLimit:180, nQ:10, passRate:0.85, inputType:"fracMixed",      gen:()=>gen2kyu3()},
+   title:"分数たし引き③",desc:"通分・10問・3分",          timeLimit:180, nQ:10, passRate:0.85, inputType:"frac",      gen:()=>gen2kyu3()},
   {key:"2kyuD", label:"2級D", color:"#0C447C", group:"3-1",
    title:"分数たし引き④",desc:"異分母帯分数・10問・3分",  timeLimit:180, nQ:10, passRate:0.85, inputType:"fracMixed", gen:()=>gen2kyu4()},
   {key:"1kyuA", label:"1級A", color:"#3C3489", group:"3-1",
@@ -1105,28 +1104,6 @@ function genTimes25and99() {
   for(let a=12;a<=99;a++)
     pool.push(makeProblem(`${a} × 99`, a*99));
   return shuffle(pool).slice(0,12);
-}
-
-// 素因数分解2因数版: p×q形式のみ → 2ボックス入力
-// 問題: "12" → 答え: [2, 6] (但し12=2²×3なので除外、代わりに純粋な2素因数のみ)
-function genPrimeFactorize2() {
-  function isPrime(n){if(n<2)return false;for(let i=2;i*i<=n;i++)if(n%i===0)return false;return true;}
-  const pool=[];
-  // p² 型 (p=2,3,5,7,11,13)
-  [2,3,5,7,11,13].forEach(p=>pool.push({n:p*p,a:[p,p]}));
-  // p×q 型 (p<q, 両方素数, 積が100以下)
-  const primes=[2,3,5,7,11,13,17,19,23,29,31,37,41,43,47];
-  for(let i=0;i<primes.length;i++)
-    for(let j=i+1;j<primes.length;j++){
-      const n=primes[i]*primes[j];
-      if(n>100) break;
-      pool.push({n, a:[primes[i],primes[j]]});
-    }
-  return shuffle(pool).slice(0,12).map(({n,a})=>({
-    display:`${n}　＝　□ × □`,
-    answer:`${a[0]} × ${a[1]}`,
-    answer2:[a[0],a[1]]
-  }));
 }
 
 // 素因数分解（プリントから移植）
@@ -2149,7 +2126,7 @@ function showQuestion(){
 
   // ガイドテキスト
   document.getElementById('opGuide').textContent=
-    (t==='frac'||t==='fracMixed')?'整数（ない場合はそのまま次へ）→ 分子 → 分母 → 決定':
+    (t==='frac'||t==='fracMixed')?'分数で入力 → 次へ → 決定で採点 → 自動で次へ':
     t==='sqrtExpand'?'整数部 → 符号ボタン → √係数 → √内 → 決定':
     isTB?'2つの数を入力 → 次へ → 決定で採点 → 自動で次へ':
     '答えを入力 → 決定で採点 → 自動で次の問題へ';
@@ -2250,11 +2227,9 @@ function npSubmit(){
 
   } else if(t==='fracMixed'){
     if(npMixPhase===1){
-      // 整数未入力の場合は 0 として扱う（真分数の答えのときはそのまま次へ）
-      if(!npMixInt_v) npMixInt_v='0';
+      if(!npMixInt_v) return;
       npMixPhase=2; deactivate('npMixInt'); activate('npMixNum');
-      npRefresh();
-      if(sub) sub.textContent='分母へ →'; return;
+      if(sub) sub.textContent='分子→'; return;
     }
     if(npMixPhase===2){
       if(!npMixNum_v) return;
